@@ -159,3 +159,22 @@
 
 ## 6. 许可
 - ksud(Rust) 与 manager(Kotlin) GPL-3.0；内核侧 GPL-2.0。照搬 Next 逻辑已标仓库+文件+行号；ShizuSU 新增均标 [自研] 并引用清单第四章 / notes/next.md。
+
+---
+
+## 7. 修复记录
+
+### 7.1 uapi/supercall.h 回退修复（构建前自查发现）
+- **bug**：初版 uapi 误以 phase1 版为底（版本 5），丢失 phase2 的 `KSU_IOCTL_STEALTH_GET/SET(25/26)` 与 `struct ksu_stealth_cmd`；而 dispatch.c 已引用 25/26 → undefined macro 编译失败。
+- **修法**：改以 `phase2/uapi/supercall.h`（版本 6，含 25/26 STEALTH、106/107 DYNAMIC_MANAGER）为底合并 98/99，UAPI 6→7。逐宏核验四补丁命令齐全（25/26/98/99/101/106/107）。
+
+### 7.2 HostsHidePanel.kt shellOut 编译报错（App compileDebugKotlin 发现）
+- **根因**：libsu `Shell.cmd(cmd).exec()` 返回 `Shell.Result`（stdout 在 `.out: List<String>`、stderr 在 `.err`）；初版对 Result 直接 `.joinToString("\n") { it }` → `Cannot infer type parameter R` / `Unresolved reference 'joinToString'/'it'`。
+- **修法**（:43-45）：
+  ```kotlin
+  private fun shellOut(cmd: String): String = runCatching {
+      Shell.cmd(cmd).exec().out.joinToString("\n")
+  }.getOrDefault("(shell error)")
+  ```
+  其余 `Shell.cmd(...).exec()`（:89 add / :102 remove）为独立执行、不取返回值，无此问题，未改。复验由构建侧重跑 `compileDebugKotlin`。
+

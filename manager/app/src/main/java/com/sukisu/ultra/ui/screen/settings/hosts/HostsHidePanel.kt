@@ -40,7 +40,9 @@ import kotlinx.coroutines.withContext
  * 不接 supercall，仅依赖已存在的 Shell/Compose。
  */
 private fun shellOut(cmd: String): String = runCatching {
-    Shell.cmd(cmd).exec().joinToString("\n") { it }
+    // libsu: exec() 返回 Shell.Result，stdout 在 .out（List<String>），stderr 在 .err。
+    // 须取 .out 再 join，不能对 Result 直接 joinToString。
+    Shell.cmd(cmd).exec().out.joinToString("\n")
 }.getOrDefault("(shell error)")
 
 @Composable
