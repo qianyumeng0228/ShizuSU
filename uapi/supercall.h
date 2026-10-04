@@ -9,7 +9,8 @@
 // 2: allowlist v4 root profile flags
 // 3: scoped su-session driver fd
 // 4: add KSU_GET_INFO_FLAG_BUNDLED
-static const __u32 KERNEL_SU_UAPI_VERSION = 4;
+// 5: [ShizuSU] add KSU_IOCTL_DYNAMIC_MANAGER_GET(106)/SET(107)
+static const __u32 KERNEL_SU_UAPI_VERSION = 5;
 
 /* Magic numbers for reboot hook to install fd */
 static const __u32 KSU_INSTALL_MAGIC1 = 0xDEADBEEF;
@@ -63,8 +64,7 @@ struct ksu_sepolicy_cmd_hdr {
  * Argument count is derived from cmd:
  * KSU_SEPOLICY_CMD_NORMAL_PERM=4, KSU_SEPOLICY_CMD_XPERM=5,
  * KSU_SEPOLICY_CMD_TYPE_STATE=1, KSU_SEPOLICY_CMD_TYPE=2,
- * KSU_SEPOLICY_CMD_TYPE_ATTR=2, KSU_SEPOLICY_CMD_ATTR=1,
- * KSU_SEPOLICY_CMD_TYPE_TRANSITION=5, KSU_SEPOLICY_CMD_TYPE_CHANGE=4,
+ * KSU_SEPOLICY_CMD_TYPE_TRANSITION=5, KSU_SEPOLICY_CMD_CHANGE=4,
  * KSU_SEPOLICY_CMD_GENFSCON=3.
  */
 
@@ -184,6 +184,12 @@ struct ksu_enable_kpm_cmd {
     __u8 enabled; // Output: true if KPM is enabled
 };
 
+/* [自研] ShizuSU 动态管理器热注册：'K',107。
+ * 输入：新管理器 APK 路径（用户态字符串指针，kernel 校验其命中多签名表后加冕）。 */
+struct ksu_dynamic_manager_set_cmd {
+    __aligned_u64 path; /* Input: const char __user *，新管理器 APK 路径（base.apk） */
+};
+
 static const __u32 SUKISU_KPM_LOAD = 1;
 static const __u32 SUKISU_KPM_UNLOAD = 2;
 static const __u32 SUKISU_KPM_NUM = 3;
@@ -234,6 +240,12 @@ static const __u32 KSU_IOCTL_ENABLE_KPM = _IOC(_IOC_READ, 'K', 102, 0);
 static const __u32 KSU_IOCTL_LIST_TRY_UMOUNT = _IOC(_IOC_READ | _IOC_WRITE, 'K', 103, 0);
 static const __u32 KSU_IOCTL_SET_SPOOF_VERSION = _IOC(_IOC_WRITE, 'K', 104, 0);
 static const __u32 KSU_IOCTL_SET_SPOOF_CPU = _IOC(_IOC_WRITE, 'K', 105, 0);
+/* [自研] ShizuSU 补丁1：动态管理器。
+ * 106 = DYNAMIC_MANAGER_GET：'K',10 (GET_MANAGER_APPID) 别名，复用 do_get_manager_appid，
+ *       无独立 handler（清单 1.3 定案 L5：当前生效管理器恒为单一 appid）。 */
+static const __u32 KSU_IOCTL_DYNAMIC_MANAGER_GET = _IOWR('K', 106, struct ksu_get_manager_appid_cmd);
+/* [自研] 107 = DYNAMIC_MANAGER_SET：注册新管理器 APK（handler = do_dynamic_manager_set）。 */
+static const __u32 KSU_IOCTL_DYNAMIC_MANAGER_SET = _IOWR('K', 107, struct ksu_dynamic_manager_set_cmd);
 static const __u32 KSU_IOCTL_KPM = _IOC(_IOC_READ | _IOC_WRITE, 'K', 200, 0);
 
 #endif
