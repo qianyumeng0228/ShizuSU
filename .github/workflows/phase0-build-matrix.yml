@@ -27,11 +27,15 @@
 
 name: Phase 0 Build Matrix
 
+# M1: manual-only since Phase 1.
+# Why no push trigger: every job pins checkout to the Phase 0 baseline
+# (7fbbb1f1...d0c93), so a push-triggered run would rebuild the SAME old
+# baseline and give zero signal on new code while burning container minutes.
+# This mirrors upstream build-lkm.yml, which triggers on workflow_call +
+# workflow_dispatch only (no push). Re-run the matrix manually from the
+# Actions tab when you actually want to regression-test the baseline.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 # Cancel superseded runs on the same ref to save runner minutes.
 concurrency:
