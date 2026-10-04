@@ -10,7 +10,8 @@
 // 3: scoped su-session driver fd
 // 4: add KSU_GET_INFO_FLAG_BUNDLED
 // 5: [ShizuSU] add KSU_IOCTL_DYNAMIC_MANAGER_GET(106)/SET(107)
-static const __u32 KERNEL_SU_UAPI_VERSION = 5;
+// 6: [ShizuSU 补丁2] add KSU_IOCTL_STEALTH_GET(25)/SET(26)
+static const __u32 KERNEL_SU_UAPI_VERSION = 6;
 
 /* Magic numbers for reboot hook to install fd */
 static const __u32 KSU_INSTALL_MAGIC1 = 0xDEADBEEF;
@@ -115,7 +116,7 @@ struct ksu_get_feature_cmd {
 
 struct ksu_set_feature_cmd {
     __u32 feature_id; /* Input: feature ID (enum ksu_feature_id) */
-    __u64 value; /* Input: feature value/state to set */
+    __u64 value; /* Input: feature value/state */
 };
 
 struct ksu_get_wrapper_fd_cmd {
@@ -168,7 +169,7 @@ struct ksu_list_try_umount_cmd {
 };
 
 static const __u8 KSU_UMOUNT_WIPE = 0; /* ignore everything and wipe list */
-static const __u8 KSU_UMOUNT_ADD = 1; /* add entry (path + flags) */
+static const __u8 KSU_UMOUNT_ADD = 1; /* add entry (or header) */
 static const __u8 KSU_UMOUNT_DEL = 2; /* delete entry, strcmp */
 
 // Other command structures
@@ -188,6 +189,13 @@ struct ksu_enable_kpm_cmd {
  * 输入：新管理器 APK 路径（用户态字符串指针，kernel 校验其命中多签名表后加冕）。 */
 struct ksu_dynamic_manager_set_cmd {
     __aligned_u64 path; /* Input: const char __user *，新管理器 APK 路径（base.apk） */
+};
+
+/* [ShizuSU 补丁2] 隐身模式开关命令体（照搬 7kimisu uapi/supercall.h:209-211）。
+ * 开启后 GET_INFO 不再上报 KSU_GET_INFO_FLAG_MANAGER；内核真实权限判定不变，
+ * 故已认主管理器仍可读写本开关。 */
+struct ksu_stealth_cmd {
+    __u8 enabled; /* Input for SET, Output for GET */
 };
 
 static const __u32 SUKISU_KPM_LOAD = 1;
@@ -233,6 +241,11 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
 static const __u32 KSU_IOCTL_SET_INIT_PGRP = _IO('K', 19);
 static const __u32 KSU_IOCTL_GET_SULOG_FD = _IOW('K', 20, struct ksu_get_sulog_fd_cmd);
 static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
+/* [ShizuSU 补丁2] 隐身开关（对齐 7kimisu uapi/supercall.h:213-214；编号 25/26）。
+ * perm_check = only_manager：签名认主即放行 —— 内核侧签名校验即 Phase 1 多签名表加冕，
+ * 不再在 App 侧做签名校验。 */
+static const __u32 KSU_IOCTL_STEALTH_GET = _IOR('K', 25, struct ksu_stealth_cmd);
+static const __u32 KSU_IOCTL_STEALTH_SET = _IOW('K', 26, struct ksu_stealth_cmd);
 // Other IOCTL command definitions
 static const __u32 KSU_IOCTL_GET_FULL_VERSION = _IOC(_IOC_READ, 'K', 100, 0);
 static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);

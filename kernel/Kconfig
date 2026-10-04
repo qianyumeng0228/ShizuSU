@@ -79,4 +79,16 @@ config KSU_DYNAMIC_MANAGER
 	  Allow root or the currently-crowned manager to hot-register a new manager APK via
 	  ioctl('K',107), with persistence to /data/adb/shizusu/manager. Safe to disable.
 
+# [ShizuSU 补丁2] 内核隐身（移植自 7kimisu v2.29 kernel/manager/stealth.c；上游无独立 Kconfig）
+config KSU_STEALTH
+	bool "ShizuSU kernel stealth mode"
+	depends on KSU
+	default y
+	help
+	  When the stealth switch is on, GET_INFO stops reporting KSU_GET_INFO_FLAG_MANAGER so
+	  the manager app looks "not installed". Real kernel permission checks and the crowned
+	  manager are unchanged, so the manager (or root) can always toggle it back. State is
+	  persisted at /data/adb/shizusu/stealth and reloaded on POST_FS_DATA. Disable to remove
+	  the stealth ioctl(25/26) and the suppression logic entirely.
+
 endmenu

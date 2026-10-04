@@ -10,6 +10,8 @@ bool only_root(void);
 bool manager_or_root(void);
 bool always_allow(void);
 bool allowed_for_su(void);
+/* [ShizuSU 补丁2] stealth 安全阀：root / 已认主管理器可用（见 supercall/perm.c） */
+bool stealth_valve_allowed(void);
 
 long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void __user *argp);
 void ksu_supercall_dump_commands(void);
