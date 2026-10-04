@@ -910,6 +910,46 @@ static int do_stealth_set(void __user *arg)
 }
 #endif // CONFIG_KSU_STEALTH
 
+/* [ShizuSU 补丁4] 照搬 Next kernel/supercall/dispatch.c:699-715 do_get_hook_mode。
+ * 上报当前 syscall hook 后端：有 syscall tracepoints 时 "Tracepoint"，否则回退 "Kprobes"。
+ * 与基线 syscall_hook_manager.c 的后端选择同构（tracepoint 走 CONFIG_HAVE_SYSCALL_TRACEPOINTS）。
+ * 101=HOOK_TYPE(char[32] 硬编码) 保留 legacy 别名不动；本命令 98 用 char[16] 条件串，勿双写。
+ * CONFIG_KSU_KPROBES_HIDE（默认 n）为 KPM 共存护栏开关：关闭时行为与上游完全一致。 */
+static int do_get_hook_mode(void __user *arg)
+{
+    struct ksu_get_hook_mode_cmd cmd = { 0 };
+
+#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+    strscpy(cmd.mode, "Tracepoint", sizeof(cmd.mode));
+#else
+    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
+#endif
+
+    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
+        pr_err("get_hook_mode: copy_to_user failed\n");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+/* [ShizuSU 补丁4] 照搬 Next dispatch.c:717-729 do_get_version_tag；宏 KERNEL_SU_VERSION_TAG
+ * 在基线无定义，改用基线现有 KSU_VERSION_FULL（kernel/Kbuild:130 注入，ksu.h:21 兜底），
+ * strscpy 自动截断到 tag[32]。 */
+static int do_get_version_tag(void __user *arg)
+{
+    struct ksu_get_version_tag_cmd cmd = { 0 };
+
+    strscpy(cmd.tag, KSU_VERSION_FULL, sizeof(cmd.tag));
+
+    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
+        pr_err("get_version_tag: copy_to_user failed\n");
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
 // IOCTL handlers mapping table
 // clang-format off
 static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
@@ -1135,6 +1175,20 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
         .perm_check = only_manager
     },
 #endif
+    // [ShizuSU 补丁4] 98=GET_HOOK_MODE / 99=GET_VERSION_TAG（照搬 Next dispatch.c:936-947 表项；
+    // perm=manager_or_root）。98 为正式 hook 模式上报命令，101=HOOK_TYPE 保留 legacy 别名。
+    {
+        .cmd = KSU_IOCTL_GET_HOOK_MODE,
+        .name = "GET_HOOK_MODE",
+        .handler = do_get_hook_mode,
+        .perm_check = manager_or_root
+    },
+    {
+        .cmd = KSU_IOCTL_GET_VERSION_TAG,
+        .name = "GET_VERSION_TAG",
+        .handler = do_get_version_tag,
+        .perm_check = manager_or_root
+    },
     {
         .cmd = 0,
         .name = NULL,

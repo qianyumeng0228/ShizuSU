@@ -91,4 +91,21 @@ config KSU_STEALTH
 	  persisted at /data/adb/shizusu/stealth and reloaded on POST_FS_DATA. Disable to remove
 	  the stealth ioctl(25/26) and the suppression logic entirely.
 
+# [ShizuSU 补丁4] KPROBES 钩子隐藏（[自研] 开关；Next Kconfig 无此选项，见 notes/next.md §8.5）。
+# 最高风险项：KPROBES 与 KPM 共用 ftrace/kprobe/tracepoint 槽位，二者同时开启会抢钩子位。
+# 默认关，KPM 共存编译/运行验证通过前不得打开（清单 4.2 / T4）。
+config KSU_KPROBES_HIDE
+	bool "ShizuSU KPROBES hook hiding (HIGH RISK, default off)"
+	depends on KSU
+	default n
+	help
+	  Expose the kprobes-based syscall-hook hiding backend and the GET_HOOK_MODE(98)
+	  reporting surface to the manager app.
+
+	  RISK: this shares ftrace/kprobe/tracepoint slots with CONFIG_KPM. Turning both on is
+	  UNVERIFIED (待实测) and may fail to load or destabilize the kernel. Keep this OFF until
+	  the KPM coexistence matrix is validated on the target device. When off (default), the
+	  syscall hook backend is selected by CONFIG_HAVE_SYSCALL_TRACEPOINTS exactly as upstream,
+	  and GET_HOOK_MODE reports the actually-active backend.
+
 endmenu

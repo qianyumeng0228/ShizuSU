@@ -11,7 +11,8 @@
 // 4: add KSU_GET_INFO_FLAG_BUNDLED
 // 5: [ShizuSU] add KSU_IOCTL_DYNAMIC_MANAGER_GET(106)/SET(107)
 // 6: [ShizuSU 补丁2] add KSU_IOCTL_STEALTH_GET(25)/SET(26)
-static const __u32 KERNEL_SU_UAPI_VERSION = 6;
+// 7: [ShizuSU 补丁4] add KSU_IOCTL_GET_HOOK_MODE(98)/GET_VERSION_TAG(99)
+static const __u32 KERNEL_SU_UAPI_VERSION = 7;
 
 /* Magic numbers for reboot hook to install fd */
 static const __u32 KSU_INSTALL_MAGIC1 = 0xDEADBEEF;
@@ -185,6 +186,18 @@ struct ksu_enable_kpm_cmd {
     __u8 enabled; // Output: true if KPM is enabled
 };
 
+/* [ShizuSU 补丁4 · 4.2 照搬] KPROBES 钩子隐藏上报结构体（Next uapi/supercall.h:139-141）。
+ * 98=GET_HOOK_MODE 的输出缓冲：内核上报后端 "Tracepoint"/"Kprobes"。 */
+struct ksu_get_hook_mode_cmd {
+    char mode[16]; // Output: backend mode string
+};
+
+/* [ShizuSU 补丁4 · 4.2 照搬] 版本标签上报结构体（Next uapi/supercall.h:143-145）。
+ * 99=GET_VERSION_TAG 的输出缓冲。 */
+struct ksu_get_version_tag_cmd {
+    char tag[32]; // Output: version tag string
+};
+
 /* [自研] ShizuSU 动态管理器热注册：'K',107。
  * 输入：新管理器 APK 路径（用户态字符串指针，kernel 校验其命中多签名表后加冕）。 */
 struct ksu_dynamic_manager_set_cmd {
@@ -246,8 +259,13 @@ static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
  * 不再在 App 侧做签名校验。 */
 static const __u32 KSU_IOCTL_STEALTH_GET = _IOR('K', 25, struct ksu_stealth_cmd);
 static const __u32 KSU_IOCTL_STEALTH_SET = _IOW('K', 26, struct ksu_stealth_cmd);
+/* [ShizuSU 补丁4 · 4.2 照搬] 钩子模式/版本标签上报（Next uapi/supercall.h:198-199；编号 98/99）。
+ * 98 输出 char[16]，与 legacy 101=HOOK_TYPE(char[32]) ABI 不同——勿双写 handler（清单 M2）。 */
+static const __u32 KSU_IOCTL_GET_HOOK_MODE = _IOC(_IOC_READ, 'K', 98, 0);
+static const __u32 KSU_IOCTL_GET_VERSION_TAG = _IOC(_IOC_READ, 'K', 99, 0);
 // Other IOCTL command definitions
 static const __u32 KSU_IOCTL_GET_FULL_VERSION = _IOC(_IOC_READ, 'K', 100, 0);
+/* legacy 别名保留（基线 char[32]），handler 复用 do_get_hook_type，勿与 98 双写（清单 M2） */
 static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
 static const __u32 KSU_IOCTL_ENABLE_KPM = _IOC(_IOC_READ, 'K', 102, 0);
 static const __u32 KSU_IOCTL_LIST_TRY_UMOUNT = _IOC(_IOC_READ | _IOC_WRITE, 'K', 103, 0);
