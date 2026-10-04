@@ -166,3 +166,64 @@ jobs:
             /tmp/k318/vmlinux
             /tmp/k318/arch/arm64/boot/Image
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # L4: prove the in-container PREBUILT official DDK clang can do a FULL 5.15
+  # kernel build (not just the out-of-tree module). Manual-only (inherited from
+  # the workflow's workflow_dispatch trigger).
+  #   source tree: baked into the ddk-min image at /opt/ddk/src/android13-5.15
+  #   toolchain:   the clang already on PATH inside the image (= official DDK clang)
+  #   OOM guard:   runner has only ~7GB RAM -> disable LTO before building
+  # ---------------------------------------------------------------------------
+  verify-prebuilt-clang-515:
+    name: Prebuilt-clang full build (android13-5.15)
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/ylarod/ddk-min:android13-5.15-20260828
+      options: --privileged
+
+    steps:
+      - name: Checkout Phase 0 baseline (full hash)
+        uses: actions/checkout@v6
+        with:
+          ref: '7fbbb1f12e2410b69c8ebf958be84f165b8d0c93'
+
+      - name: Locate in-image source + toolchain
+        run: |
+          set -e
+          echo "=== clang on PATH ==="
+          which clang && clang --version | head -1
+          echo "=== /opt/ddk layout ==="
+          ls /opt/ddk || true
+          echo "=== source tree ==="
+          ls -d /opt/ddk/src/android13-5.15 || { echo "SOURCE TREE MISSING"; exit 2; }
+
+      - name: Configure gki_defconfig + disable LTO (OOM guard)
+        run: |
+          set -e
+          cd /opt/ddk/src/android13-5.15
+          make ARCH=arm64 CC=clang LLVM=1 gki_defconfig
+          # 7GB runner: full/thin LTO OOMs at link. Force LTO_NONE.
+          scripts/config --file .config \
+            -d LTO_CLANG -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d THINLTO \
+            -e LTO_NONE
+          make ARCH=arm64 CC=clang LLVM=1 olddefconfig
+          grep -E 'CONFIG_LTO' .config || true
+
+      - name: Full build (Image + vmlinux)
+        run: |
+          set -e
+          cd /opt/ddk/src/android13-5.15
+          make ARCH=arm64 CC=clang LLVM=1 -j"$(nproc)" Image
+
+      - name: Upload fullbuild artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: aarch64-prebuilt-clang-5.15-fullbuild
+          path: |
+            /opt/ddk/src/android13-5.15/vmlinux
+            /opt/ddk/src/android13-5.15/arch/arm64/boot/Image
+            /opt/ddk/src/android13-5.15/arch/arm64/boot/Image.gz
+            /opt/ddk/src/android13-5.15/System.map
+            /opt/ddk/src/android13-5.15/.config
+          if-no-files-found: ignore
