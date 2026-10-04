@@ -105,3 +105,31 @@
 - **T8**：6 条签名为 ReSukiSU 2026-05-29 快照，换管理器证书须同步更新。
 - **T9**：`EXPECTED_*` 变量保留但不再被引用，外部构建脚本设置它们不影响编译（无害）。
 - 本次仅静态产出文件，未在本环境实际编译（无内核树/交叉编译器）；编译期正确性以「逐行对照基线/上游源码 + 最小 diff」保证。
+
+---
+
+## 4. 编译修复记录（WSL GKI 5.15 / 6.1 实测，BUILD_RC=0 后回填）
+
+> 本节为真机编译验证后补充。以下两处修复已逐字同步回本目录源码，使「源码目录 = 编译通过代码」。
+
+### 4.1 ksys_mkdir 无导出 → stub（dynamic_manager.c）
+- 实测：GKI 5.15/6.1 的 `fs/namei.c` 均无 `ksys_mkdir`，也无 `ksys_mkdirat`（5.15 内部仅 `do_mkdirat(dfd, struct filename*, mode)`）；全树无 `EXPORT_SYMBOL(ksys_mkdir*)`。
+- 修法：`persist_manager_package()` 中 `ksys_mkdir(SHIZUSU_DIR, 0700);` 改为注释：
+  `/* FIX(Phase1): ksys_mkdir/ksys_mkdirat not exported in GKI 5.15/6.1; dir precreated by ksud. */`
+- 语义：符合原 best-effort 设计；`/data/adb/shizusu` 目录由 ksud（用户态）预建。
+
+### 4.2 -Wframe-larger-than → Kbuild 帧限制（Kbuild）
+- 实测错误：`do_dynamic_manager_set` 栈帧 4400B（`char path[PATH_MAX]`=4096 + `pkg[]`）> GKI 2048B 上限，`-Werror,-Wframe-larger-than` 报错。
+- 修法（最小、纯 ASCII）：`kernel/Kbuild` 末尾追加
+  `CFLAGS_manager/dynamic_manager.o += -Wframe-larger-than=8192`
+- 备注：曾尝试把 path 改 kmalloc，但经传输管道写回时 C 内 `\n`/`\0` 转义被吃坏，回退原始文件后改用 Kbuild 提限；4400B 帧在 arm64 16K 栈内安全。
+
+### 4.3 三风险点实测结论
+- **(i) ksys_mkdir 导出**：不可用 → 见 4.1。
+- **(ii) is_manager_apk 可见性**：基线 `apk_sign.c` 中本就为非 static（`bool is_manager_apk(char *path)`），且 `manager/apk_sign.h` 已声明；dynamic_manager.c include 即得原型，**无需改**。
+- **(iii) throne 原型**：`ksu_set_manager_appid()`/`KSU_INVALID_APPID`（manager_identity.h）、`track_throne(bool)`（throne_tracker.h）、`get_pkg_from_apk_path`（apk_sign.h）全部解析通过，编译无未定义符号。
+
+### 4.4 编译结果
+- android13-5.15：BUILD_RC=0；android14-6.1：BUILD_RC=0。
+- config：`KSU=y / KSU_MULTI_MANAGER_SUPPORT=y / KSU_DYNAMIC_MANAGER=y / KPROBES=y / LTO_NONE=y`。
+- vmlinux 已链接入 `do_dynamic_manager_set`、`ksu_dynamic_manager_load` 及 KSU 核心符号。

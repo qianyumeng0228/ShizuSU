@@ -231,3 +231,6 @@ ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-mis
 ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
 
 # Keep a new line here!! Because someone may append config
+
+# [ShizuSU fix] do_dynamic_manager_set uses char path[PATH_MAX] on stack (~4.4KB frame) > 2048 GKI limit.
+CFLAGS_manager/dynamic_manager.o += -Wframe-larger-than=8192

@@ -102,7 +102,7 @@ static void persist_manager_package(const char *pkg)
 	size_t len = strlen(pkg);
 
 	/* best-effort 建目录；已存在返回 -EEXIST，忽略。待实测：ksys_mkdir 导出符号。 */
-	ksys_mkdir(SHIZUSU_DIR, 0700);
+	/* FIX(Phase1): ksys_mkdir/ksys_mkdirat not exported in GKI 5.15/6.1; dir precreated by ksud. */
 
 	fp = filp_open(SHIZUSU_MANAGER_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (IS_ERR(fp)) {
