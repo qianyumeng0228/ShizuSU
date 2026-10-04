@@ -29,10 +29,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import com.sukisu.ultra.R
+import com.sukisu.ultra.ksuApp
 import com.sukisu.ultra.ui.util.FlashResult
 import com.sukisu.ultra.ui.util.LkmSelection
 import com.sukisu.ultra.ui.util.downloadBoot
 import com.sukisu.ultra.ui.util.flashModule
+import com.sukisu.ultra.ui.util.getFileName
 import com.sukisu.ultra.ui.util.installBoot
 import com.sukisu.ultra.ui.util.restoreBoot
 import com.sukisu.ultra.ui.util.uninstallPermanently
@@ -104,19 +106,42 @@ sealed class FlashIt : Parcelable {
     data object FlashUninstall : FlashIt()
 }
 
+// [ShizuSU 补丁3 · 改造] 批量安装：失败收集汇总、队列不中断。
+// 上游 Next Flash.kt:72-78 与基线此处都是「任一 zip code!=0 立即 return，后续不再装」。
+// ShizuSU 有意改为「逐个安装、失败记录(名称+原因)、继续队列、结束汇总」（清单 D6/3.4）。
 fun flashModulesSequentially(
     uris: List<Uri>,
     onStdout: (String) -> Unit,
     onStderr: (String) -> Unit
 ): FlashResult {
+    val failures = mutableListOf<Pair<String, String>>()
+    var anySuccess = false
     for (uri in uris) {
-        flashModule(uri, onStdout, onStderr).apply {
-            if (code != 0) {
-                return FlashResult(code, err, showReboot)
-            }
+        val name = runCatching { uri.getFileName(ksuApp) }.getOrNull()
+            ?: uri.lastPathSegment ?: uri.toString()
+        onStdout("- Installing: $name")
+        val result = flashModule(uri, onStdout, onStderr)
+        if (result.code != 0) {
+            onStdout("  ! FAILED: $name (code=${result.code})")
+            failures.add(name to result.err)
+        } else {
+            anySuccess = true
+            onStdout("  - OK: $name")
         }
     }
-    return FlashResult(0, "", true)
+    if (failures.isEmpty()) {
+        return FlashResult(0, "", true)
+    }
+    // 队列已全部处理完。有成功也有失败时仍提示重启（成功的模块待重启生效）。
+    val summary = buildString {
+        append("Batch install finished: ${uris.size - failures.size} ok, ${failures.size} failed\n")
+        failures.forEachIndexed { i, (name, err) ->
+            append("\n${i + 1}. $name\n")
+            val firstErr = err.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
+            if (firstErr.isNotBlank()) append("   $firstErr\n")
+        }
+    }
+    return FlashResult(1, summary, anySuccess)
 }
 
 fun flashIt(

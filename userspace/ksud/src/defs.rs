@@ -51,6 +51,17 @@ mod android {
     pub const BACKUP_FILENAME: &str = "stock_image.sha1";
     pub const KSU_TEMP_BACKUP_DIR_NAME: &str = "boot_backup";
 
+    // ── [ShizuSU Phase3 · 补丁3 自研] 模块/allowlist 备份导出命名（N1 定案）──────────────
+    // N1 证据（n1-backup-prefix-evidence.md §五）：`*_backup_<sha1>` 槽位专属于 boot 镜像备份
+    // （基线 defs.rs:50 `ksu_backup_`，消费点全部在 boot_patch.rs；clean_backup() 用
+    // starts_with 扫 /data/adb/ksu/ 清理）。模块/allowlist 导出走 tar，落点不同，
+    // 用「第二段词位」与 boot 前缀分列，三者互不为前缀关系、不撞名。
+    // boot 镜像备份前缀本阶段保持基线 `ksu_backup_` 不改（品牌化为 `shisu_backup_` 属 boot
+    // 补丁范畴，会触碰 boot_patch.rs/utils.rs OTA 恢复契约，不在模块管理便利范围内）。
+    pub const ALLOWLIST_FILE: &str = concatcp!(WORKING_DIR, ".allowlist");
+    pub const SHISU_MODULES_BACKUP_PREFIX: &str = "shisu_modules_backup_";
+    pub const SHISU_ALLOWLIST_BACKUP_PREFIX: &str = "shisu_allowlist_backup_";
+
     pub const DEFAULT_PACKAGE_NAME: &str = env!("KSU_PACKAGE_NAME");
 
     pub const UMOUNT_CONFIG_PATH: &str = concatcp!(WORKING_DIR, ".umount");
