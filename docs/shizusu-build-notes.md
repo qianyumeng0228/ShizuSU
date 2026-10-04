@@ -4,9 +4,9 @@
 
 ---
 
-## 1. 关键教训：Windows checkout 会摊平 `include/uapi` 符号链接
+## 1. 关键教训：Windows checkout 会摊平 `kernel/include/uapi` 符号链接
 
-SukiSU-Ultra 仓库里 `include/uapi` 是一个 **git 符号链接**，指向仓库根目录的 `uapi/`。
+SukiSU-Ultra 仓库里 `kernel/include/uapi` 是一个 **git 符号链接**，指向仓库根目录的 `uapi/`。
 Windows 上直接用 git 克隆该仓库时，符号链接会被摊平成一个**普通文本文件**（内容是目标路径字符串），而不是目录。
 后果：做 GKI 内核集成后编译失败，报错类似 `uapi/app_profile.h: Not found` / `No such file or directory`。
 
@@ -21,7 +21,7 @@ ln -s ../../uapi drivers/kernelsu/include/uapi
 
 **在 Windows 上操作该仓库时的注意事项：**
 - 用 **WSL 里的 git** 克隆 / 提交，或开启 Windows 的开发者模式 + `git config --global core.symlinks true`；
-- 一旦符号链接已被摊平成文本文件，先 `git checkout -- include/uapi`（或对应路径）还原成链接，再继续；
+- 一旦符号链接已被摊平成文本文件，先 `git checkout -- kernel/include/uapi`（或对应路径）还原成链接，再继续；
 - 不要在 Windows 原生工作区里直接做 GKI 内核编译——路径 / 行尾 / 符号链接三处都会出问题。
 
 ---
