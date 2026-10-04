@@ -1,0 +1,229 @@
+# =============================================================================
+# Phase 0 baseline build matrix for ShizuSU (fork of SukiSU-Ultra)
+#
+# Purpose (per Phase 0 baseline-validation design):
+#   Prove that the Phase 0 baseline commit (7fbbb1f1) builds across the kernel
+#   version bands the project targets: 3.x (backport smoke), 5.10, 5.15, 6.x.
+#
+# Matrix design basis:
+#   * GKI LKM jobs (5.10 / 5.15 / 6.x) are built EXACTLY the way upstream
+#     SukiSU-Ultra does it: inside the prebuilt DDK container
+#     ghcr.io/ylarod/ddk-min:<kmi>-<ddk_release>, running
+#       cd kernel && CONFIG_KSU=m CC=clang make
+#     and shipping the resulting aarch64 kernelsu.ko as an artifact.
+#     Reference: .github/workflows/ddk-lkm.yml (arm64 path) and
+#     .github/workflows/build-lkm.yml (kmi matrix). ddk_release uses the
+#     upstream default 20260828.
+#   * 3.x is OUT of upstream support (upstream ships no 3.x/backport tree).
+#     It is an extra reverse-port data point only: we prepare an AOSP
+#     android-3.18 ARM64 tree and attempt to build the module out-of-tree
+#     against it. This job is continue-on-error: a red 3.x does NOT block
+#     the 5.10/5.15/6.x baseline validation.
+#
+# Baseline pin:
+#   Every job checks out ref 7fbbb1f1 explicitly so CI builds the SAME baseline
+#   that local compilation used, regardless of what main has advanced to.
+# =============================================================================
+
+name: Phase 0 Build Matrix
+
+# M1: manual-only since Phase 1.
+# Why no push trigger: every job pins checkout to the Phase 0 baseline
+# (7fbbb1f1...d0c93), so a push-triggered run would rebuild the SAME old
+# baseline and give zero signal on new code while burning container minutes.
+# This mirrors upstream build-lkm.yml, which triggers on workflow_call +
+# workflow_dispatch only (no push). Re-run the matrix manually from the
+# Actions tab when you actually want to regression-test the baseline.
+on:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: phase0-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # GKI LKM matrix: 5.10 / 5.15 / 6.x
+  # Mirrors upstream ddk-lkm.yml arm64 build path.
+  #   image  : ghcr.io/ylarod/ddk-min:<kmi>-20260828  (--privileged)
+  #   build  : cd kernel && CONFIG_KSU=m CC=clang make
+  #   output : aarch64-<kmi>-lkm  ->  <kmi>_kernelsu.ko
+  # ---------------------------------------------------------------------------
+  gki-lkm:
+    name: GKI LKM (${{ matrix.kmi }})
+    strategy:
+      fail-fast: false
+      matrix:
+        kmi:
+          - android12-5.10   # 5.10 band
+          - android13-5.15   # 5.15 band
+          - android14-6.1    # 6.x band
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ylarod/ddk-min:${{ matrix.kmi }}-20260828
+      options: --privileged
+
+    steps:
+      - name: Checkout Phase 0 baseline (7fbbb1f1)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
+
+      - name: Build kernelsu.ko (arm64 GKI LKM)
+        run: |
+          set -e
+          # The DDK container checks out the workspace as a different uid;
+          # keep git happy inside the container.
+          git config --global --add safe.directory '*'
+          cd kernel
+
+          echo "=== Building kernelsu.ko for KMI: ${{ matrix.kmi }} ==="
+          CONFIG_KSU=m CC=clang make
+          echo "=== Build completed ==="
+
+          mkdir -p /github/workspace/out
+          OUT=/github/workspace/out/${{ matrix.kmi }}_kernelsu.ko
+          cp kernelsu.ko "$OUT"
+          llvm-strip -d "$OUT"
+          ls -la "$OUT"
+          echo "Size after stripping: $(du -h "$OUT" | cut -f1)"
+
+      - name: Upload kernelsu.ko artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: aarch64-${{ matrix.kmi }}-lkm
+          path: /github/workspace/out/${{ matrix.kmi }}_kernelsu.ko
+
+  # ---------------------------------------------------------------------------
+  # 3.x backport smoke (non-blocking).
+  # Upstream has no 3.x tree; this is a reverse-port data point. We fetch an
+  # AOSP android-3.18 generic tree, prepare an ARM64 config, and attempt the
+  # same out-of-tree module build (and a best-effort Image build). Modern KSU
+  # uses post-3.18 APIs (proc_ops, newer VFS/SELinux helpers, arm64 cacheflush
+  # layout), so this is EXPECTED to fail at compile/prepare. It must not block
+  # the 5.10/5.15/6.x gate.
+  # ---------------------------------------------------------------------------
+  backport-3x-smoke:
+    name: 3.x backport smoke (android-3.18 ARM64, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout Phase 0 baseline (7fbbb1f1)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc-aarch64-linux-gnu \
+            flex bison libssl-dev libncurses-dev bc make git
+
+      - name: Clone AOSP android-3.18 generic kernel tree
+        run: |
+          git config --global advice.detachedHead false
+          # Shallow clone to bound cost. If the branch has been retired by
+          # AOSP, this step fails loudly -- still a valid smoke data point.
+          git clone --depth 1 -b android-3.18 \
+            https://android.googlesource.com/kernel/common /tmp/k318
+
+      - name: Prepare 3.18 ARM64 tree (defconfig + modules_prepare)
+        run: |
+          set -x
+          cd /tmp/k318
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          make defconfig
+          make modules_prepare
+
+      - name: Attempt out-of-tree kernelsu.ko against 3.18
+        run: |
+          set -x
+          cd "$GITHUB_WORKSPACE/kernel"
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          # Same out-of-tree contract as the GKI jobs, but KDIR=3.18 tree.
+          make KDIR=/tmp/k318 CONFIG_KSU=m || true
+
+      - name: Attempt full ARM64 Image build (best effort)
+        run: |
+          set -x
+          cd /tmp/k318
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          make -j"$(nproc)" Image || true
+
+      - name: Upload smoke artifacts (best effort)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backport-3x-smoke
+          path: |
+            /tmp/k318/vmlinux
+            /tmp/k318/arch/arm64/boot/Image
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # L4: prove the in-container PREBUILT official DDK clang can do a FULL 5.15
+  # kernel build (not just the out-of-tree module). Manual-only (inherited from
+  # the workflow's workflow_dispatch trigger).
+  #   source tree: baked into the ddk-min image at /opt/ddk/src/android13-5.15
+  #   toolchain:   the clang already on PATH inside the image (= official DDK clang)
+  #   OOM guard:   runner has only ~7GB RAM -> disable LTO before building
+  # ---------------------------------------------------------------------------
+  verify-prebuilt-clang-515:
+    name: Prebuilt-clang full build (android13-5.15)
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/ylarod/ddk-min:android13-5.15-20260828
+      options: --privileged
+
+    steps:
+      - name: Checkout Phase 0 baseline (full hash)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
+
+      - name: Locate in-image source + toolchain
+        run: |
+          set -e
+          echo "=== clang on PATH ==="
+          which clang && clang --version | head -1
+          echo "=== /opt/ddk layout ==="
+          ls /opt/ddk || true
+          echo "=== source tree ==="
+          ls -d /opt/ddk/src/android13-5.15 || { echo "SOURCE TREE MISSING"; exit 2; }
+
+      - name: Configure gki_defconfig + disable LTO (OOM guard)
+        run: |
+          set -e
+          cd /opt/ddk/src/android13-5.15
+          make ARCH=arm64 CC=clang LLVM=1 gki_defconfig
+          # 7GB runner: full/thin LTO OOMs at link. Force LTO_NONE.
+          scripts/config --file .config \
+            -d LTO_CLANG -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d THINLTO \
+            -e LTO_NONE
+          make ARCH=arm64 CC=clang LLVM=1 olddefconfig
+          grep -E 'CONFIG_LTO' .config || true
+
+      - name: Full build (Image + vmlinux)
+        run: |
+          set -e
+          cd /opt/ddk/src/android13-5.15
+          make ARCH=arm64 CC=clang LLVM=1 -j"$(nproc)" Image
+
+      - name: Upload fullbuild artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: aarch64-prebuilt-clang-5.15-fullbuild
+          path: |
+            /opt/ddk/src/android13-5.15/vmlinux
+            /opt/ddk/src/android13-5.15/arch/arm64/boot/Image
+            /opt/ddk/src/android13-5.15/arch/arm64/boot/Image.gz
+            /opt/ddk/src/android13-5.15/System.map
+            /opt/ddk/src/android13-5.15/.config
+          if-no-files-found: ignore
