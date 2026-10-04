@@ -68,7 +68,7 @@ jobs:
       - name: Checkout Phase 0 baseline (7fbbb1f1)
         uses: actions/checkout@v6
         with:
-          ref: '7fbbb1f12e2410b69c8ebf958be84f165b8d0c93'  # Phase 0 baseline (= 7fbbb1f1, full hash required by actions/checkout)
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
 
       - name: Build kernelsu.ko (arm64 GKI LKM)
         run: |
@@ -113,7 +113,7 @@ jobs:
       - name: Checkout Phase 0 baseline (7fbbb1f1)
         uses: actions/checkout@v6
         with:
-          ref: '7fbbb1f12e2410b69c8ebf958be84f165b8d0c93'  # Phase 0 baseline (= 7fbbb1f1, full hash required by actions/checkout)
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
 
       - name: Install build dependencies
         run: |
@@ -186,7 +186,7 @@ jobs:
       - name: Checkout Phase 0 baseline (full hash)
         uses: actions/checkout@v6
         with:
-          ref: '7fbbb1f12e2410b69c8ebf958be84f165b8d0c93'
+          ref: ${{ github.ref }}  # dynamic: dispatch on a branch to test that branch's code
 
       - name: Locate in-image source + toolchain
         run: |
