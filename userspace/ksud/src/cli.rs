@@ -433,11 +433,14 @@ enum Module {
         size: Option<u64>,
     },
 
-    /// [自研·占位] hosts hiding entry placeholder (Phase 4 will implement the real logic).
+    /// [ShizuSU 补丁4] hosts hiding: manage /data/adb/ksu/hosts (status|list|add|remove).
     Hosts {
-        /// placeholder action string (ignored)
+        /// action: status (default) | list | add | remove
         #[arg(default_value = "status")]
         action: String,
+        /// trailing args: for add: <host> [ip]; for remove: <host>
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
+        hosts: Vec<String>,
     },
 }
 
@@ -904,7 +907,7 @@ pub fn run() -> Result<()> {
                 }
                 Module::UninstallAll => module::uninstall_all_modules(),
                 Module::Create { size } => module::create_module_image(size),
-                Module::Hosts { action } => module::hosts_hide(&action),
+                Module::Hosts { action, hosts } => module::hosts_hide(&action, &hosts),
                 Module::Config { internal, command } => {
                     let module_id = match internal {
                         Some(internal_name) => format!("internal.{internal_name}"),
@@ -1243,22 +1246,13 @@ pub fn run() -> Result<()> {
         #[cfg(target_arch = "aarch64")]
         Commands::Susfs { command } => {
             let _ = match command {
-                Susfs::Status => {
-                    println!("{}", susfs::get_susfs_status());
-                    Ok(())
-                }
-                Susfs::Version => {
-                    println!("{}", susfs::get_susfs_version());
-                    Ok(())
-                }
-                Susfs::Variant => {
-                    println!("{}", susfs::get_susfs_variant());
-                    Ok(())
-                }
-                Susfs::Features => {
-                    println!("{}", susfs::get_susfs_features());
-                    Ok(())
-                }
+                // [ShizuSU 补丁4] 三个查询 + support 检查，改走 susfsd façade（照搬 Next
+                // cli.rs:823-827 分发映射：Support=>show_features(true) / Version / Variant / Features=>show_features(false)）。
+                // 通道底层复用基线 susfs::abi::send（reboot(2) 0xDEADBEEF+0xFAFAFAFA）。
+                Susfs::Status => susfsd::show_features(true),
+                Susfs::Version => susfsd::show_version(),
+                Susfs::Variant => susfsd::show_variant(),
+                Susfs::Features => susfsd::show_features(false),
                 Susfs::SetUname { release, version } => susfs::set_uname(&release, &version),
                 Susfs::EnableLog { enabled } => susfs::enable_log(enabled != 0),
                 Susfs::EnableAvcLogSpoofing { enabled } => {

@@ -61,6 +61,10 @@ mod android {
     pub const ALLOWLIST_FILE: &str = concatcp!(WORKING_DIR, ".allowlist");
     pub const SHISU_MODULES_BACKUP_PREFIX: &str = "shisu_modules_backup_";
     pub const SHISU_ALLOWLIST_BACKUP_PREFIX: &str = "shisu_allowlist_backup_";
+    // [ShizuSU 补丁4 · 4.3 自研] hosts 隐藏：全局 hosts 白名单文件。
+    // Next 全仓无 hosts 集成（notes/next.md §6），此为 ShizuSU 自研入口；本命令只读写该文件，
+    // 是否被模块挂载到 /system/etc/hosts 生效取决于模块（待实测）。
+    pub const HOSTS_FILE: &str = concatcp!(WORKING_DIR, "hosts");
 
     pub const DEFAULT_PACKAGE_NAME: &str = env!("KSU_PACKAGE_NAME");
 

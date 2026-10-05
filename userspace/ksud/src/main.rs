@@ -55,6 +55,9 @@ mod su;
 mod sulog;
 #[cfg(target_arch = "aarch64")]
 mod susfs;
+// [ShizuSU 补丁4] Next susfsd.rs 的查询 façade（复用 susfs::abi reboot 通道；与 susfs 同 aarch64 门控）
+#[cfg(target_arch = "aarch64")]
+mod susfsd;
 #[cfg(target_arch = "aarch64")]
 mod susfs_config;
 #[cfg(target_arch = "aarch64")]

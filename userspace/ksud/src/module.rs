@@ -1471,13 +1471,108 @@ pub fn create_module_image(size: Option<u64>) -> Result<()> {
     Ok(())
 }
 
-/// [自研·占位] `ksud module hosts`：hosts 隐藏入口占位。
-/// 本阶段（补丁3）**不实现** hosts 读写逻辑；完整「写/合并 /data/adb/ksu/hosts、配合模块
-/// system/etc/hosts 挂载」与 Phase 4 Root 隐藏增强合并统一实现（清单 3.6/4.3）。
-pub fn hosts_hide(action: &str) -> Result<()> {
-    println!("[ShizuSU] module hosts: placeholder (Phase 3, no-op)");
-    println!("- hosts hiding is not implemented yet; full logic (read/write /data/adb/ksu/hosts");
-    println!("  and module system/etc/hosts integration) will land in Phase 4.");
-    println!("- requested action: {action} (ignored)");
-    Ok(())
+/// [ShizuSU 补丁4 · 4.3 自研] `ksud module hosts <status|list|add|remove> [host] [ip]`。
+///
+/// 管理全局 hosts 隐藏白名单文件 `defs::HOSTS_FILE`（/data/adb/ksu/hosts）。
+/// - `status`（默认）：文件是否存在 + 条目数；
+/// - `list`/`show`：打印文件全文；
+/// - `add <host> [ip]`：写入/去重一条 `ip host`（默认 ip=0.0.0.0，即把该域名指向空地址）；
+/// - `remove <host>`：删除 hostname 命中的条目。
+///
+/// 边界与待实测：Next 全仓无 hosts 集成（notes/next.md §6，清单 D8），本命令为 ShizuSU 自研。
+/// 它**只**读写 /data/adb/ksu/hosts；该文件是否被模块挂载/合并到 /system/etc/hosts 生效，
+/// 取决于具体模块（Magic Mount），不在 ksud 本命令内——标注 **待实测**（真机）。
+/// 不内置任何「检测域名清单」——条目由用户/模块决定，避免臆造屏蔽常量。
+pub fn hosts_hide(action: &str, hosts: &[String]) -> Result<()> {
+    let path = defs::HOSTS_FILE;
+    let exists = std::path::Path::new(path).exists();
+
+    match action {
+        "status" => {
+            if !exists {
+                println!("hosts file {path}: not present (0 entries)");
+            } else {
+                let content = std::fs::read_to_string(path)?;
+                let n = content.lines().filter(|l| {
+                    let t = l.trim();
+                    !t.is_empty() && !t.starts_with('#')
+                }).count();
+                println!("hosts file {path}: {n} entr{}", if n == 1 { "y" } else { "ies" });
+            }
+            Ok(())
+        }
+        "list" | "show" => {
+            if !exists {
+                println!("(empty: {path} does not exist)");
+                return Ok(());
+            }
+            let content = std::fs::read_to_string(path)?;
+            print!("{content}");
+            if !content.ends_with('\n') {
+                println!();
+            }
+            Ok(())
+        }
+        "add" => {
+            let host = hosts.first().ok_or_else(|| anyhow::anyhow!("usage: ksud module hosts add <host> [ip]"))?;
+            let ip = hosts.get(1).map(String::as_str).unwrap_or("0.0.0.0");
+
+            let mut lines: Vec<String> = if exists {
+                std::fs::read_to_string(path)?
+                    .lines()
+                    .map(String::from)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            // 去重：若已有以 host 为最后一个 token 的行，更新其 IP；否则追加。
+            let mut replaced = false;
+            for l in lines.iter_mut() {
+                let tokens: Vec<&str> = l.split_whitespace().collect();
+                if tokens.len() >= 2 && tokens[tokens.len() - 1] == host {
+                    *l = format!("{ip}\t{host}");
+                    replaced = true;
+                }
+            }
+            if !replaced {
+                lines.push(format!("{ip}\t{host}"));
+            }
+
+            std::fs::write(path, lines.join("\n") + "\n")?;
+            println!("{} hosts entry: {ip} {host} (file: {path})", if replaced { "updated" } else { "added" });
+            println!("[待实测] 需模块把 {path} 挂载/合并到 /system/etc/hosts 才对 App 生效。");
+            Ok(())
+        }
+        "remove" => {
+            let host = hosts.first().ok_or_else(|| anyhow::anyhow!("usage: ksud module hosts remove <host>"))?;
+            if !exists {
+                println!("{path} does not exist; nothing to remove.");
+                return Ok(());
+            }
+            let before: Vec<String> = std::fs::read_to_string(path)?
+                .lines()
+                .map(String::from)
+                .collect();
+            let after: Vec<String> = before
+                .iter()
+                .filter(|l| {
+                    let tokens: Vec<&str> = l.split_whitespace().collect();
+                    !(tokens.len() >= 2 && tokens[tokens.len() - 1] == host)
+                })
+                .cloned()
+                .collect();
+            if after.len() == before.len() {
+                println!("no entry matched host: {host}");
+            } else {
+                std::fs::write(path, after.join("\n") + "\n")?;
+                println!("removed hosts entry: {host} (file: {path})");
+            }
+            Ok(())
+        }
+        other => {
+            anyhow::bail!("unknown hosts action '{other}'; use status|list|add|remove")
+        }
+    }
 }
+
