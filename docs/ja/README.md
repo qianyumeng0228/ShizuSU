@@ -1,15 +1,15 @@
-# SukiSU Ultra
-<img align='right' src='SukiSU-mini.svg' width='220px' alt="sukisu logo">
+﻿# ShizuSU
+<img align='right' src='ShizuSU-banner.png' width='220px' alt="shizusu logo">
 
 
 [English](../README.md) | [简体中文](../zh/README.md) | **日本語** | [Türkçe](../tr/README.md)
 
-[KernelSU](https://github.com/tiann/KernelSU) をベースとした Android デバイスの root ソリューション
+[SukiSU-Ultra](https://github.com/qianyumeng0228/ShizuSU) からフォークした Android デバイスの root ソリューション（上流は [KernelSU](https://github.com/tiann/KernelSU)）
 
 **試験中なビルドです！自己責任で使用してください！**<br>
 このソリューションは [KernelSU](https://github.com/tiann/KernelSU) に基づいていますが、試験中なビルドです。
 
-> これは非公式なフォークです。すべての権利は [@tiann](https://github.com/tiann) に帰属します。
+> これは非公式なフォークです。すべての権利は [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) と元の [@tiann](https://github.com/tiann) に帰属します。
 >
 > ただし、将来的には KSU とは別に管理されるブランチとなる予定です。
 
@@ -18,13 +18,13 @@
 メインブランチを使用 (非 GKI のデバイスのビルドは非対応) (susfs を手動で統合が必要)
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s main
 ```
 
 非 GKI のデバイスに対応するブランチを使用 (susfs を手動で統合が必要)
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s builtin
 ```
 
 ## 統合された susfs の使い方
@@ -32,7 +32,7 @@ curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kern
 1. susfs-main または他の susfs-\* ブランチを直接で使用、susfs の統合は不要 (非 GKI デバイスのビルドに対応)
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s susfs-main
 ```
 
 ## フックの方式
@@ -83,7 +83,7 @@ KPM テンプレートのアドレス: https://github.com/udochina/KPM-Build-Any
 
 ## その他のリンク
 
-**マネージャーの翻訳を行う場合** https://crowdin.com/project/SukiSU-Ultra
+同梱の翻訳は上流プロジェクトから引き継いだもので、古くなっている可能性があります。翻訳の貢献はプルリクエストで歓迎します。
 
 - [その他パッチ済み GKI](https://github.com/ShirkNeko/GKI_KernelSU_SUSFS) ZRAM パッチ、KPM、susfs が含まれています...
 - [パッチの少ない GKI](https://github.com/MiRinFork/GKI_SukiSU_SUSFS/releases) susfs のみ
@@ -127,7 +127,6 @@ KPM テンプレートのアドレス: https://github.com/udochina/KPM-Build-Any
 ## ライセンス
 
 - 「kernel」のディレクトリ内のファイルは [GPL-2.0-only](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) のライセンスに基づいています。
-- アニメキャラクターの画像とスタンプを含むこれらのファイルの `ic_launcher(?!.*alt.*).*` は特別な形式でライセンスされています：[怡子曰曰](https://space.bilibili.com/10545509) が描き、著作権は [明风 OuO](https://space.bilibili.com/274939213) が保有し、ベクター化されたアイコンはこのプロジェクトが提供します。詳細は [`LICENSE_icon_English`](./LICENSE_icon_English) と [`LICENSE_icon_SC`](./LICENSE_icon_SC) を参照してください。
 - 上記のファイルまたはディレクトリを除き、その他のすべての部分は[GPL-3.0 以降](https://www.gnu.org/licenses/gpl-3.0.html)です。
 
 ## スポンサーシップの一覧
