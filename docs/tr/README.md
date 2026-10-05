@@ -1,14 +1,14 @@
-# SukiSU Ultra
-<img align='right' src='SukiSU-mini.svg' width='250px' alt="sukisu logo">
+﻿# ShizuSU
+<img align='right' src='ShizuSU-banner.png' width='250px' alt="shizusu logo">
 
 
 [English](../README.md) | [简体中文](../zh/README.md) | [日本語](../ja/README.md) | **Türkçe**
 
-[KernelSU](https://github.com/tiann/KernelSU) tabanlı Android cihaz root çözümü
+[SukiSU-Ultra](https://github.com/qianyumeng0228/ShizuSU) çatallanmış Android cihaz root çözümü (üst proje: [KernelSU](https://github.com/tiann/KernelSU))
 
 **Deneysel! Kullanım riski size aittir!**
 
-> Bu resmi olmayan bir daldır, tüm hakları saklıdır [@tiann](https://github.com/tiann)
+> Bu resmi olmayan bir daldır, tüm hakları [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) ve orijinal [@tiann](https://github.com/tiann) aittir
 >
 > Ancak, gelecekte ayrı bir KSU dalı olarak devam edeceğiz
 
@@ -19,13 +19,13 @@
 Ana dalı kullanın (GKI olmayan cihazlar için desteklenmez)
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s main
 ```
 
 GKI olmayan cihazları destekleyen dalı kullanın
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s builtin
 ```
 
 ## susfs Nasıl Entegre Edilir
@@ -33,7 +33,7 @@ curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kern
 1. Doğrudan susfs-main veya susfs-\* dalını kullanın, susfs entegrasyonuna gerek yok
 
 ```
-curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+curl -LSs "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/kernel/setup.sh" | bash -s susfs-main
 ```
 
 ## Kanca Yöntemleri
@@ -123,20 +123,12 @@ Lütfen **tümünü** https://kernelsu.org/zh_CN/guide/installation.html adresin
 ## Lisans
 
 - `kernel` dizinindeki dosyalar [GPL-2.0-only](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) lisansı altındadır.
-- Anime karakter görselleri içeren `ic_launcher(?!.*alt.*).*` dosyaları özel bir şekilde lisanslanmıştır: çizim [怡子曰曰](https://space.bilibili.com/10545509), telif hakkı [明风 OuO](https://space.bilibili.com/274939213)'ye aittir ve vektörleştirilmiş simgeler bu proje tarafından sağlanmıştır. Ayrıntılar için [`LICENSE_icon_English`](./LICENSE_icon_English) ve [`LICENSE_icon_SC`](./LICENSE_icon_SC) bölümüne bakın.
 - Yukarıda belirtilen dosyalar veya dizinler hariç, diğer tüm parçalar [GPL-3.0 veya üzeri](https://www.gnu.org/licenses/gpl-3.0.html)'dir.
 
 ## Afdian Bağlantısı
 
 - https://afdian.com/a/shirkneko
 
-## Sponsor Listesi
-
-- [Ktouls](https://github.com/Ktouls) Bana sağladığınız destek için çok teşekkür ederim
-- [zaoqi123](https://github.com/zaoqi123) Bana sütlü çay ısmarlamanız da güzel
-- [wswzgdg](https://github.com/wswzgdg) Bu projeye olan desteğiniz için çok teşekkür ederim
-- [yspbwx2010](https://github.com/yspbwx2010) Çok teşekkür ederim
-- [DARKWWEE](https://github.com/DARKWWEE) 100 USDT için teşekkürler
 
 ## Katkıda Bulunanlar
 
