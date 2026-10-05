@@ -1,5 +1,5 @@
-﻿# ShizuSU
-<img align='right' src='ShizuSU-banner.png' width='220px' alt="shizusu logo">
+# ShizuSU
+<p align="center"><img src="ShizuSU-banner.png" width="220px" alt="shizusu logo"></p>
 
 **English** | [简体中文](./zh/README.md) | [日本語](./ja/README.md) | [Türkçe](./tr/README.md) | [Русский](./ru/README.md)
 
