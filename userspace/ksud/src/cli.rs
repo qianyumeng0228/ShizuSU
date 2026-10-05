@@ -374,6 +374,71 @@ enum Module {
         #[command(subcommand)]
         command: ModuleConfigCmd,
     },
+
+    // ── [ShizuSU Phase3 · 补丁3] 模块管理便利新增子命令 ──────────────────────────────
+    // 上游 Next ksud CLI 无 backup/restore/install-batch/disable-all/uninstall-all/create/hosts
+    // 子命令（已核验 notes/next.md §3：Next cli.rs Module 仅 Install/Restore(=undo remove)/
+    // Uninstall/Enable/Disable/Action/Metamodule/List/Config/Risk）。以下为 ShizuSU 自研/改造。
+
+    /// [自研] Backup modules + allowlist as tar into <DEST_DIR>
+    ///
+    /// Produces shisu_modules_backup_<ts>.tar + shisu_allowlist_backup_<ts>.tar (+ .meta)
+    /// inside <DEST_DIR>. tar layout matches the App-side SAF export so both are
+    /// interchangeable. See module::backup_modules.
+    Backup {
+        /// output directory for the backup tars
+        dest_dir: String,
+    },
+
+    /// [自研] Restore modules/allowlist from a backup tar <SRC_TAR>
+    ///
+    /// Auto-detects: filename containing "allowlist" -> restore to /data/adb/ksu;
+    /// otherwise -> restore to /data/adb/modules_update (reboot to apply).
+    /// Named RestoreFromBackup to avoid clashing with the existing UndoUninstall
+    /// (which only clears the remove mark). See module::restore_modules_from_backup.
+    RestoreFromBackup {
+        /// path to a backup .tar produced by `module backup` or the App SAF export
+        src: String,
+    },
+
+    /// [改造] Install multiple module zips in sequence, collecting failures instead
+    /// of aborting the queue on the first error. See module::install_modules_batch.
+    InstallBatch {
+        /// one or more module zip file paths
+        #[arg(required = true)]
+        zips: Vec<String>,
+    },
+
+    /// [照搬函数 + 自研二次确认] Disable ALL modules.
+    ///
+    /// The underlying mark_all_modules logic is identical to Next module.rs:899-905;
+    /// ShizuSU adds a required --yes guard to avoid accidentally disabling the whole
+    /// root environment. Re-run with --yes to actually proceed.
+    DisableAll {
+        /// confirm you really want to disable every module
+        #[arg(long)]
+        yes: bool,
+    },
+
+    /// [照搬函数] Mark ALL modules for uninstall (takes effect on reboot).
+    UninstallAll,
+
+    /// [自研][待实测] Reserved hook for sparse module image capacity.
+    ///
+    /// No sparse modules.img exists on this build (modules live on ext4 /data/adb/modules);
+    /// this only accepts and records --size. See module::create_module_image.
+    Create {
+        /// requested image capacity in bytes (reserved, not applied yet)
+        #[arg(long)]
+        size: Option<u64>,
+    },
+
+    /// [自研·占位] hosts hiding entry placeholder (Phase 4 will implement the real logic).
+    Hosts {
+        /// placeholder action string (ignored)
+        #[arg(default_value = "status")]
+        action: String,
+    },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -820,6 +885,26 @@ pub fn run() -> Result<()> {
                     module::run_lua(&id, &function, false, true).map_err(|e| anyhow::anyhow!("{e}"))
                 }
                 Module::List => module::list_modules(),
+                // ── [ShizuSU Phase3 · 补丁3] 新增子命令分发 ──────────────────────────
+                Module::Backup { dest_dir } => module::backup_modules(&dest_dir),
+                Module::RestoreFromBackup { src } => module::restore_modules_from_backup(&src),
+                Module::InstallBatch { zips } => module::install_modules_batch(&zips),
+                Module::DisableAll { yes } => {
+                    // [自研] 二次确认：disable-all 会一次性停用全部模块、可能让 root 环境
+                    // 立即失效，故必须显式 --yes 才执行；否则打印提示并拒绝（非交互场景
+                    // 由调用方/App 决定何时带 --yes）。
+                    if !yes {
+                        anyhow::bail!(
+                            "Refusing to disable ALL modules without confirmation.\n\
+                             This can disable your entire root environment. Re-run with \
+                             `--yes` to proceed:\n    ksud module disable-all --yes"
+                        );
+                    }
+                    module::disable_all_modules()
+                }
+                Module::UninstallAll => module::uninstall_all_modules(),
+                Module::Create { size } => module::create_module_image(size),
+                Module::Hosts { action } => module::hosts_hide(&action),
                 Module::Config { internal, command } => {
                     let module_id = match internal {
                         Some(internal_name) => format!("internal.{internal_name}"),

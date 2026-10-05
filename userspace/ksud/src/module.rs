@@ -1271,3 +1271,213 @@ pub fn get_managed_features() -> Result<HashMap<String, Vec<String>>> {
 
     Ok(managed_features_map)
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ShizuSU Phase 3 · 补丁 3「模块管理便利」新增（ksud 侧）
+//
+// 标注口径：
+//   [自研]   = 上游（KernelSU-Next）ksud 无此能力，ShizuSU 新增（依据 notes/next.md、
+//              master/KernelSUX-migration.md 第三章 3.2/3.5/3.6、n1-backup-prefix-evidence.md）
+//   [改造]   = 同一逻辑改行为（失败收集不中断）
+//   [待实测] = 源码无法证实，须真机验证（不得编造结果）
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// [自研] 生成备份时间戳 `yyyyMMdd_HHmmss`（对齐 Next BackupRestore.kt:58
+/// `SimpleDateFormat("yyyyMMdd_HHmmss")` 的格式，仅语言换 Rust 实现）。
+fn shisu_backup_timestamp() -> String {
+    chrono::Local::now().format("%Y%m%d_%H%M%S").to_string()
+}
+
+/// [自研] 用内嵌 busybox 执行一条 shell 命令并断言成功。
+///
+/// 为什么走 busybox tar 而不是新增 Rust `tar` crate：
+///  - 基线 ksud 已内嵌 busybox（assets::BUSYBOX_PATH = /data/adb/ksu/bin/busybox），
+///    install 流程已在用（module.rs:112/231）；
+///  - App 侧 BackupRestore.kt 导出 tar 也用同一个 busybox tar；
+///  - 同用 busybox tar 可保证 ksud 导出 tar 与 App SAF 导出 tar 字节兼容、互相可恢复，
+///    且不新增 cargo 依赖（清单 3.2④ 给出的两个方案中选「复用 busybox」）。
+fn shisu_run_tar(shell_cmd: &str, what: &str) -> Result<()> {
+    let status = Command::new(assets::BUSYBOX_PATH)
+        .args(["sh", "-c", shell_cmd])
+        .status()
+        .with_context(|| format!("failed to spawn busybox sh for {what}"))?;
+    ensure!(status.success(), "{what} failed");
+    Ok(())
+}
+
+/// [自研] `ksud module backup <dest_dir>`：把 `/data/adb/modules` 整个目录 +
+/// `/data/adb/ksu/.allowlist` 打成两个 tar，落到 dest_dir，并写一个 .meta 元数据 sidecar。
+///
+/// tar 布局逐字对齐 Next App `BackupRestore.kt`：
+///  - modules   :61 `tar -cpf tmp -C /data/adb/modules $(ls /data/adb/modules)`
+///  - allowlist :89 `tar -cpf tmp -C /data/adb/ksu .allowlist`
+/// 导出文件名按 N1 定案（n1-backup-prefix-evidence.md §五）：
+///  - `<dest>/shisu_modules_backup_<yyyyMMdd_HHmmss>.tar`
+///  - `<dest>/shisu_allowlist_backup_<yyyyMMdd_HHmmss>.tar`
+pub fn backup_modules(dest_dir: &str) -> Result<()> {
+    ksucalls::ensure_uapi_version_matched()?;
+    assets::ensure_binaries(false).with_context(|| "Failed to extract assets")?;
+    ensure_dir_exists(dest_dir).with_context(|| format!("Failed to create dest dir: {dest_dir}"))?;
+
+    let ts = shisu_backup_timestamp();
+    let modules_tar = format!("{dest_dir}/{}{ts}.tar", defs::SHISU_MODULES_BACKUP_PREFIX);
+    let allowlist_tar = format!("{dest_dir}/{}{ts}.tar", defs::SHISU_ALLOWLIST_BACKUP_PREFIX);
+
+    // 1) modules 目录（空目录则跳过，对齐 Next :56 `listFiles()?.isEmpty() != false -> false`）
+    let has_modules = std::fs::read_dir(defs::MODULE_DIR)
+        .map(|rd| rd.flatten().any(|e| e.path().is_dir()))
+        .unwrap_or(false);
+    if has_modules {
+        let cmd = format!(
+            "{} tar -cpf '{}' -C {} $(ls {})",
+            assets::BUSYBOX_PATH,
+            modules_tar,
+            defs::MODULE_DIR.trim_end_matches('/'),
+            defs::MODULE_DIR,
+        );
+        shisu_run_tar(&cmd, "modules backup")?;
+        println!("- Modules backed up to: {modules_tar}");
+    } else {
+        println!("- No modules installed, skipping modules tar");
+    }
+
+    // 2) allowlist（不存在则跳过，对齐 Next :84 `if !SuFile(...).exists() return false`）
+    if Path::new(defs::ALLOWLIST_FILE).exists() {
+        let cmd = format!(
+            "{} tar -cpf '{}' -C {} .allowlist",
+            assets::BUSYBOX_PATH,
+            allowlist_tar,
+            defs::WORKING_DIR.trim_end_matches('/'),
+        );
+        shisu_run_tar(&cmd, "allowlist backup")?;
+        println!("- Allowlist backed up to: {allowlist_tar}");
+    } else {
+        println!("- No allowlist at {}, skipping", defs::ALLOWLIST_FILE);
+    }
+
+    // 3) 元数据 sidecar（[自研]：记录时间戳/版本/布局，便于 restore 与人工核对）
+    let meta = format!("{dest_dir}/{}{ts}.meta", defs::SHISU_MODULES_BACKUP_PREFIX);
+    std::fs::write(
+        &meta,
+        format!(
+            "ShizuSU module backup\ntimestamp={ts}\nksud_version={}\n\
+             layout=modules_tar + allowlist_tar + this_meta\n",
+            defs::VERSION_NAME
+        ),
+    )
+    .with_context(|| format!("failed to write meta: {meta}"))?;
+    println!("- Metadata: {meta}");
+
+    Ok(())
+}
+
+/// [自研] `ksud module restore <src_tar>`：从备份 tar 恢复。
+/// 自动判别 tar 类型（文件名含 `allowlist`）：
+///  - allowlist tar → 解回 `/data/adb/ksu`（对齐 Next BackupRestore.kt:152
+///    `tar -xpf tmp -C /data/adb/ksu`）；
+///  - modules  tar → 解包到 `/data/adb/modules_update`，重启后生效
+///    （对齐 Next BackupRestore.kt:126 `mkdir -p ... && tar -xpf tmp -C modules_update`）。
+pub fn restore_modules_from_backup(src_tar: &str) -> Result<()> {
+    ksucalls::ensure_uapi_version_matched()?;
+    assets::ensure_binaries(false).with_context(|| "Failed to extract assets")?;
+    ensure!(Path::new(src_tar).exists(), "Backup tar not found: {src_tar}");
+
+    let name = Path::new(src_tar)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    let is_allowlist = name.contains("allowlist");
+
+    if is_allowlist {
+        let cmd = format!(
+            "{} tar -xpf '{}' -C {}",
+            assets::BUSYBOX_PATH,
+            src_tar,
+            defs::WORKING_DIR.trim_end_matches('/'),
+        );
+        shisu_run_tar(&cmd, "allowlist restore")?;
+        println!("- Allowlist restored to {}", defs::WORKING_DIR);
+    } else {
+        ensure_dir_exists(defs::MODULE_UPDATE_DIR)?;
+        let cmd = format!(
+            "{} tar -xpf '{}' -C {}",
+            assets::BUSYBOX_PATH,
+            src_tar,
+            defs::MODULE_UPDATE_DIR.trim_end_matches('/'),
+        );
+        shisu_run_tar(&cmd, "modules restore")?;
+        println!("- Modules restored to {} (reboot to apply)", defs::MODULE_UPDATE_DIR);
+    }
+
+    if let Err(e) = regenerate_preinit_rc() {
+        warn!("regenerate preinit rc failed: {e}");
+    }
+    Ok(())
+}
+
+/// [改造] `ksud module install-batch <zip...>`：逐个安装模块 zip，**任一失败不中断队列**，
+/// 收集 (路径, 原因) 到汇总，全部处理完后打印汇总列表。
+///
+/// 与上游相反：Next `Flash.kt:72-78` 与基线 `FlashUtils.kt:112-117` 都是「任一 zip
+/// `code != 0` 立即 return，后续 zip 不再安装」（清单 D6/3.4 判定为「失败即中断」）。
+/// ShizuSU 有意改为「失败收集汇总、不中断」。返回 Err 仅当**全部** zip 失败。
+pub fn install_modules_batch(zips: &[String]) -> Result<()> {
+    ksucalls::ensure_uapi_version_matched()?;
+    let mut successes = 0usize;
+    let mut failures: Vec<(String, String)> = Vec::new();
+
+    for zip in zips {
+        println!("\n=== Installing: {zip} ===");
+        match install_module(zip) {
+            Ok(()) => successes += 1,
+            Err(e) => failures.push((zip.clone(), format!("{e}"))),
+        }
+    }
+
+    println!("\n========== Batch install summary ==========");
+    println!("Succeeded: {successes}/{}", zips.len());
+    if failures.is_empty() {
+        println!("Failed: none");
+    } else {
+        println!("Failed ({}):", failures.len());
+        for (i, (path, err)) in failures.iter().enumerate() {
+            println!("  {}. {path}\n     reason: {err}");
+        }
+    }
+
+    if successes == 0 {
+        bail!("All {} module(s) failed to install", zips.len());
+    }
+    Ok(())
+}
+
+/// [自研][待实测] `ksud module create [--size <bytes>]`：模块稀疏镜像容量预留入口。
+///
+/// 核验（notes/next.md §5、清单 D9/T1）：Next 与 SukiSU ksud 均**无** Magisk 式稀疏 ext4
+/// 模块镜像——模块直接存 ext4 `/data/adb/modules`（defs.rs:22）；全仓 grep `image_size`
+/// 仅命中 `lkm_image.rs`（内核 LKM 镜像打包），与模块数据镜像无关。故本命令为「预留设计」：
+/// 接受 `--size` 参数并记录，**当前不创建任何镜像**。待真机确认 `/data/adb` 是否外挂镜像后，
+/// 再在此处接 make_ext4/resize2fs 落点。**不得假定 6G 默认值已生效**。
+pub fn create_module_image(size: Option<u64>) -> Result<()> {
+    println!("[ShizuSU] module create (reserved hook)");
+    match size {
+        Some(bytes) => println!("- Requested image size: {bytes} bytes (reserved, not applied)"),
+        None => println!("- No --size given; reserved default semantics (not applied)"),
+    }
+    println!("- This build stores modules on ext4 at {} directly;", defs::MODULE_DIR);
+    println!("  no sparse modules.img exists on ksud side.");
+    println!("  [待实测] on a real device, check whether /data/adb is an external image;");
+    println!("  then wire make_ext4/resize2fs here. Do not assume a 6G default works.");
+    Ok(())
+}
+
+/// [自研·占位] `ksud module hosts`：hosts 隐藏入口占位。
+/// 本阶段（补丁3）**不实现** hosts 读写逻辑；完整「写/合并 /data/adb/ksu/hosts、配合模块
+/// system/etc/hosts 挂载」与 Phase 4 Root 隐藏增强合并统一实现（清单 3.6/4.3）。
+pub fn hosts_hide(action: &str) -> Result<()> {
+    println!("[ShizuSU] module hosts: placeholder (Phase 3, no-op)");
+    println!("- hosts hiding is not implemented yet; full logic (read/write /data/adb/ksu/hosts");
+    println!("  and module system/etc/hosts integration) will land in Phase 4.");
+    println!("- requested action: {action} (ignored)");
+    Ok(())
+}
