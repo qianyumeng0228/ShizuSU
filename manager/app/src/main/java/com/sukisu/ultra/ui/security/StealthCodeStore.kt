@@ -110,7 +110,10 @@ object StealthCodeStore {
      */
     fun effectiveCode(context: Context? = null): String {
         read()?.let { return it }
-        val pref = runCatching { /* SettingsRepositoryImpl().stealthCode TODO */ null }.getOrNull()
+        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl().stealthCode（String?）后替换为上游原行：
+        //   val pref = runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
+        // 显式标注 String? —— 占位若写 runCatching { null } 会被推成 Nothing?，与 sanitize(String?) 不匹配。
+        val pref: String? = null
         return sanitize(pref) ?: DEFAULT_CODE
     }
 
@@ -123,8 +126,12 @@ object StealthCodeStore {
     fun acceptedCodes(context: Context? = null): Set<String> {
         val codes = LinkedHashSet<String>()
         read()?.let { codes.add(it) }
-        runCatching { /* SettingsRepositoryImpl().stealthCode TODO */ null }
-            ?.let { sanitize(it) }?.let { codes.add(it) }
+        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl().stealthCode 后替换为上游原行：
+        //   runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
+        //       ?.let { sanitize(it) }?.let { codes.add(it) }
+        // 显式 String? 占位（避免 runCatching { null } 推成 Nothing?）。
+        val pref: String? = null
+        pref?.let { sanitize(it) }?.let { codes.add(it) }
         return if (codes.isEmpty()) setOf(DEFAULT_CODE) else codes
     }
 
@@ -135,22 +142,17 @@ object StealthCodeStore {
      * @return 是否需要界面刷新
      */
     fun sync(): Boolean {
-        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl().stealthCode 后补全本函数的双向同步逻辑。
-        val repo = runCatching { /* SettingsRepositoryImpl() TODO */ null }.getOrNull() ?: return false
-        val pref = sanitize(null)
-        val disk = read()
-        return when {
-            disk == null && pref != null -> {
-                write(pref)
-                false
-            }
-
-            disk != null && disk != pref -> {
-                // repo.stealthCode = disk  // TODO
-                true
-            }
-
-            else -> false
-        }
+        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl() 后恢复上游 when 双向同步（v2.29 原逻辑）：
+        //   val repo = runCatching { SettingsRepositoryImpl() }.getOrNull() ?: return false
+        //   val pref = sanitize(repo.stealthCode)
+        //   val disk = read()
+        //   return when {
+        //       disk == null && pref != null -> { write(pref); false }
+        //       disk != null && disk != pref  -> { repo.stealthCode = disk; true }
+        //       else -> false
+        //   }
+        // 当前占位：无 App 端密令可读，仅读一次磁盘（保持与上游同样的 IO 触发），恒不刷新界面。
+        read()
+        return false
     }
 }

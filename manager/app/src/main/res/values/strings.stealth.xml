@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ShizuSU 补丁2 · 隐身恢复提示文案（v2.29 上游逐字移植）
+  ============================================================
+  来源：7kimisu manager/app/src/main/res/values/strings.xml:321-325（v2.29, 0246ca0）。
+  被引用处：manager/.../ui/security/StealthReceiver.kt（5 个 R.string.stealth_restore_*），
+  缺失即 :app:compileDebugKotlin FAILED。
+
+  集成方式（二选一，效果等价）：
+    (A) 本文件直接放在 manager/app/src/main/res/values/ 下即可 —— AAPT 会自动合并
+        res/values/*.xml，无需改动基线 strings.xml（推荐，零冲突）；
+    (B) 或把下面 5 个 <string> 元素粘进基线 strings.xml 的 <resources> 内，再删本文件。
+
+  TODO(ShizuSU 品牌)：stealth_restore_foreign_kernel / stealth_restore_not_recognized
+    两条原文案含上游品牌名 "7kimisu"。按铁律先逐字照搬以对齐上游语义、保证编译；
+    ShizuSU 自有品牌落定后再把 "7kimisu" 替换为 "ShizuSU"。其余三条不含品牌名。
+-->
+<resources>
+
+    <!-- upstream :321 -->
+    <string name="stealth_restore_disabled">Stealth mode has been turned off</string>
+
+    <!-- upstream :322 -->
+    <string name="stealth_restore_not_enabled">Stealth mode is not enabled</string>
+
+    <!-- upstream :323  TODO(ShizuSU 品牌)："7kimisu" 待替换 -->
+    <string name="stealth_restore_foreign_kernel">This kernel is not 7kimisu (root is currently provided by another solution). Restart the device, or uninstall the other root manager, then try again.</string>
+
+    <!-- upstream :324 -->
+    <string name="stealth_restore_kernel_too_old">This kernel is too old and does not support stealth mode</string>
+
+    <!-- upstream :325  TODO(ShizuSU 品牌)：两处 "7kimisu" 待替换 -->
+    <string name="stealth_restore_not_recognized">This manager is not recognized by the 7kimisu kernel right now: restart the device, or uninstall the other 7kimisu manager, then try again.</string>
+
+</resources>
