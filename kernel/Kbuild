@@ -27,6 +27,10 @@ ifneq ($(CONFIG_KSU_DISABLE_MANAGER),y)
 kernelsu-objs += manager/apk_sign.o
 kernelsu-objs += manager/pkg_observer.o
 kernelsu-objs += manager/throne_tracker.o
+# [ShizuSU 补丁1] 动态管理器热注册通道（CONFIG_KSU_DYNAMIC_MANAGER=y 时编译）
+ifeq ($(CONFIG_KSU_DYNAMIC_MANAGER),y)
+kernelsu-objs += manager/dynamic_manager.o
+endif
 endif
 
 kernelsu-objs += policy/allowlist.o
@@ -67,6 +71,13 @@ ccflags-y += -DCONFIG_KSU_DEBUG=1
 endif
 ifeq ($(CONFIG_KSU_X86_PATCH_SYSCALL_DISPATCHER),y)
 ccflags-y += -DCONFIG_KSU_X86_PATCH_SYSCALL_DISPATCHER=1
+endif
+# [ShizuSU 补丁1] 多管理器/动态管理器开关 -> ccflags（外部模块构建时使 .c 内 #ifdef 可见）
+ifeq ($(CONFIG_KSU_MULTI_MANAGER_SUPPORT),y)
+ccflags-y += -DCONFIG_KSU_MULTI_MANAGER_SUPPORT=1
+endif
+ifeq ($(CONFIG_KSU_DYNAMIC_MANAGER),y)
+ccflags-y += -DCONFIG_KSU_DYNAMIC_MANAGER=1
 endif
 endif
 
@@ -142,6 +153,19 @@ ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
 $(info -- KernelSU Manager package name: $(KSU_MANAGER_PACKAGE))
 endif
 
+# [ShizuSU 补丁1/自研] 注入 ShizuSU 自家管理器签名到多签名表表尾（见 manager/manager_sign.h）。
+# 默认空：表仅含 6 条上游签名。构建时传
+#   KSU_MANAGER_EXTRA_SIZE=<证书DER长度> KSU_MANAGER_EXTRA_HASH="<小写hex sha256>"
+# 即可追加第 7 条；不设置则不追加。
+ifdef KSU_MANAGER_EXTRA_SIZE
+ccflags-y += -DKSU_MANAGER_EXTRA_SIZE=$(KSU_MANAGER_EXTRA_SIZE)
+ccflags-y += -DKSU_MANAGER_EXTRA_HASH=\"$(KSU_MANAGER_EXTRA_HASH)\"
+$(info -- ShizuSU extra manager key size: $(KSU_MANAGER_EXTRA_SIZE))
+endif
+
+# [ShizuSU 补丁1] 注意：以下 EXPECTED_SIZE/HASH（及下方 EXPECTED_SIZE2/HASH2）注入变量
+# 保留不动（最小 diff，避免破坏外部构建脚本/CI），但 apk_sign.c 已改用 manager_sign.h 多签名表，
+# 这些宏不再被代码引用。
 $(info -- KernelSU Manager signature size: $(KSU_EXPECTED_SIZE))
 $(info -- KernelSU Manager signature hash: $(KSU_EXPECTED_HASH))
 
@@ -207,3 +231,6 @@ ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-mis
 ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
 
 # Keep a new line here!! Because someone may append config
+
+# [ShizuSU fix] do_dynamic_manager_set uses char path[PATH_MAX] on stack (~4.4KB frame) > 2048 GKI limit.
+CFLAGS_manager/dynamic_manager.o += -Wframe-larger-than=8192

@@ -61,4 +61,22 @@ config KSU_X86_PATCH_SYSCALL_DISPATCHER
 	  Dynamically patch x64's hardened syscall dispatcher to support syscall hooks. This is a
 	  replacement for a kernel source code patch, and is useful for x86_64 LKM mode.
 
+# [ShizuSU 补丁1] 多管理器兼容（自研开关；上游 ReSukiSU 无此 Kconfig，见清单 D3）
+config KSU_MULTI_MANAGER_SUPPORT
+	bool "ShizuSU multi-manager support"
+	depends on KSU
+	default y
+	help
+	  Trust a built-in multi-signature table (official / RKSU / WKSU / KowSU / KSUN / MKSU
+	  plus the ShizuSU-injected key) as the single manager trust root, instead of a single
+	  hardcoded signing certificate.
+
+config KSU_DYNAMIC_MANAGER
+	bool "ShizuSU dynamic manager hot-register channel"
+	depends on KSU && KSU_MULTI_MANAGER_SUPPORT
+	default y
+	help
+	  Allow root or the currently-crowned manager to hot-register a new manager APK via
+	  ioctl('K',107), with persistence to /data/adb/shizusu/manager. Safe to disable.
+
 endmenu

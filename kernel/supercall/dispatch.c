@@ -15,6 +15,7 @@
 #include "runtime/ksud_boot.h"
 #include "feature/kernel_umount.h"
 #include "manager/manager_identity.h"
+#include "manager/dynamic_manager.h" // [ShizuSU 补丁1] do_dynamic_manager_set / ksu_dynamic_manager_load
 #include "selinux/selinux.h"
 #include "infra/file_wrapper.h"
 #include "hook/tp_marker.h"
@@ -123,6 +124,8 @@ static int do_report_event(void __user *arg)
             } else {
                 pr_info("post-fs-data triggered\n");
                 on_post_fs_data();
+                // [ShizuSU 补丁1] POST_FS_DATA 持久化恢复：读回 /data/adb/shizusu/manager 重新加冕
+                ksu_dynamic_manager_load();
             }
         }
         break;
@@ -1064,6 +1067,22 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
         .handler = list_try_umount,
         .perm_check = manager_or_root
     },
+#ifdef CONFIG_KSU_DYNAMIC_MANAGER
+    // [ShizuSU 补丁1] 106 DYNAMIC_MANAGER_GET = 'K',10 别名，复用 do_get_manager_appid（无独立 handler）
+    {
+        .cmd = KSU_IOCTL_DYNAMIC_MANAGER_GET,
+        .name = "DYNAMIC_MANAGER_GET",
+        .handler = do_get_manager_appid,
+        .perm_check = manager_or_root
+    },
+    // [ShizuSU 补丁1] 107 DYNAMIC_MANAGER_SET：权限 uid==0 || is_manager()（= manager_or_root）
+    {
+        .cmd = KSU_IOCTL_DYNAMIC_MANAGER_SET,
+        .name = "DYNAMIC_MANAGER_SET",
+        .handler = do_dynamic_manager_set,
+        .perm_check = manager_or_root
+    },
+#endif
     {
         .cmd = 0,
         .name = NULL,
