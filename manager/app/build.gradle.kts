@@ -1,5 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
+import java.util.Properties
 import com.google.protobuf.gradle.id
 
 plugins {
@@ -63,6 +64,26 @@ val baseCppFlags = baseCFlags + "-fno-rtti"
 android {
     namespace = "com.sukisu.ultra"
 
+    // ---- Local release signing (keystore.properties not in repo) ----
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = Properties()
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { keystoreProps.load(it) }
+    }
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             externalNativeBuild {
@@ -75,6 +96,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             vcsInfo.include = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             externalNativeBuild {
                 cmake {

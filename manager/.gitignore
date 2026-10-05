@@ -8,3 +8,8 @@ captures
 .cxx
 local.properties
 key.jks
+
+# Local signing (never commit)
+keystore.properties
+*.jks
+*.keystore
