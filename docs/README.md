@@ -3,7 +3,7 @@
 
 **English** | [简体中文](./zh/README.md) | [日本語](./ja/README.md) | [Türkçe](./tr/README.md) | [Русский](./ru/README.md)
 
-A kernel-based root solution for Android devices, forked from [`tiann/KernelSU`](https://github.com/tiann/KernelSU) and based on [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra), with stealth, multi-manager and module-convenience enhancements.
+A kernel-based root solution for Android devices, forked from [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) (which itself is forked from [`tiann/KernelSU`](https://github.com/tiann/KernelSU)), with stealth, multi-manager and module-convenience enhancements.
 
 [![Latest release](https://img.shields.io/github/v/release/qianyumeng0228/ShizuSU?label=Release&logo=github)](https://github.com/qianyumeng0228/ShizuSU/releases/latest)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
