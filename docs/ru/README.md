@@ -1,23 +1,25 @@
-# SukiSU Ultra
-<img align='right' src='SukiSU-mini.svg' width='220px' alt="логотип sukisu">
+﻿# ShizuSU
+<img align='right' src='ShizuSU-banner.png' width='220px' alt="логотип shizusu">
 
 
 [English](../README.md) | [简体中文](./zh/README.md) | [日本語](./ja/README.md) | [Türkçe](./tr/README.md) | **Русский**
 
-Решение для получения root-прав на уровне ядра для устройств Android. Форк [`tiann/KernelSU`](https://github.com/tiann/KernelSU) с добавлением интересных изменений.
+Решение для получения root-прав на уровне ядра для устройств Android. Форк [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra) (сам является форком [`tiann/KernelSU`](https://github.com/tiann/KernelSU)) с добавлением stealth, мульти-менеджеров и удобства модулей.
 
-[![Latest release](https://img.shields.io/github/v/release/SukiSU-Ultra/SukiSU-Ultra?label=Release&logo=github)](https://github.com/tiann/KernelSU/releases/latest)
-[![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/Sukiksu)
+[![Latest release](https://img.shields.io/github/v/release/qianyumeng0228/ShizuSU?label=Release&logo=github)](https://github.com/qianyumeng0228/ShizuSU/releases/latest)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![GitHub License](https://img.shields.io/github/license/tiann/KernelSU?logo=gnu)](/LICENSE)
+[![GitHub License](https://img.shields.io/github/license/qianyumeng0228/ShizuSU?logo=gnu)](/LICENSE)
 
 ## Особенности
 
 1. Управление доступом `su` и root на уровне ядра.
 2. [App Profile](https://kernelsu.org/guide/app-profile.html): закройте root-права для конкретных приложений.
-3. Поддержка non-GKI и GKI 1.0.
-4. Поддержка KPM.
-5. Изменения в теме менеджера и встроенный susfs.
+3. **Поддержка нескольких менеджеров**: одно ядро распознаёт несколько менеджеров через встроенную таблицу подписей (RKSU / KernelSU / WKSU / KowSU / KSUN / MKSU), плюс горячая регистрация и сохранение (`/data/adb/shizusu/manager`).
+4. **Режим скрытности**: переключатель `/data/adb/shizusu/stealth`; при включении информационный отчёт больше не раскрывает статус менеджера приложениям.
+5. **Удобство модулей**: резервное копирование / восстановление модулей и allowlist, пакетная установка со сбором ошибок (без прерывания), управление enable / disable / disable-all / uninstall-all.
+6. **Улучшения скрытия**: канал запросов susfsd, опциональное скрытие KPROBES-хуков (по умолчанию выключено), вход для скрытия hosts, связанный с App Profile.
+7. Поддержка non-GKI и GKI 1.0.
+8. Поддержка KPM.
 
 ## Статус совместимости
 
@@ -39,7 +41,7 @@
 
 ## Перевод
 
-Если вы хотите предложить перевод для менеджера, пожалуйста, воспользуйтесь [Crowdin](https://crowdin.com/project/SukiSU-Ultra).
+Встроенные переводы унаследованы от вышестоящего проекта и могут отставать. Вы можете предложить перевод через pull request.
 
 ## Поддержка KPM
 
@@ -61,10 +63,6 @@
 1. Если устройство зависает при удалении менеджера (sukisu) 
    Удалите com.sony.playmemories.mobile
 
-## Спонсоры
-
-- [ShirkNeko](https://afdian.com/a/shirkneko) (поддерживает SukiSU)
-- [weishu](https://github.com/sponsors/tiann) (автор KernelSU)
 
 ## Список спонсоров ShirkNeko
 
@@ -79,7 +77,6 @@
 ## Лицензия
 
 - Файлы в директории «kernel» находятся под лицензией [GPL-2.0-only](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-- Изображения файлов `ic_launcher(?!.*alt.*).*` с аниме-персонажами лицензированы особым образом: рисунок [怡子曰曰](https://space.bilibili.com/10545509), авторское право принадлежит [明风 OuO](https://space.bilibili.com/274939213), векторизованные иконки предоставлены этим проектом. Подробнее см. [`LICENSE_icon_English`](./LICENSE_icon_English) и [`LICENSE_icon_SC`](./LICENSE_icon_SC).
 - За исключением вышеуказанных файлов и директорий, все остальные части находятся под лицензией [GPL-3.0 or later](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ## Благодарности
