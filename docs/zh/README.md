@@ -1,5 +1,5 @@
 # ShizuSU
-<p align="center"><img src="ShizuSU-banner.png" width="220px" alt="shizusu logo"></p>
+<p align="center"><img src="ShizuSU-logo.png" width="220px" alt="ShizuSU logo"></p>
 
 
 [English](../README.md) | **简体中文** | [日本語](../ja/README.md) | [Türkçe](../tr/README.md)
