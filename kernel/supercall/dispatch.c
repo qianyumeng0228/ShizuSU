@@ -16,6 +16,7 @@
 #include "feature/kernel_umount.h"
 #include "manager/manager_identity.h"
 #include "manager/dynamic_manager.h" // [ShizuSU 补丁1] do_dynamic_manager_set / ksu_dynamic_manager_load
+#include "manager/stealth.h" // [ShizuSU 补丁2] ksu_stealth_is_enabled / ksu_stealth_set
 #include "selinux/selinux.h"
 #include "infra/file_wrapper.h"
 #include "hook/tp_marker.h"
@@ -56,7 +57,10 @@ static int do_get_info(void __user *arg)
     }
 #endif
 
-    if (is_manager()) {
+    /* [ShizuSU 补丁2] GET_INFO 门控：照搬 7kimisu dispatch.c:53/:84。
+     * 只有「真·管理器 且 隐身未开」才上报 MANAGER 标志；stealth 开启时压制该 flag，
+     * 但内核 is_manager() 保持真实（不伪造/不改动认主状态），故管理器仍可回写本开关。 */
+    if (is_manager() && !ksu_stealth_is_enabled()) {
         cmd.flags |= KSU_GET_INFO_FLAG_MANAGER;
     }
     if (ksu_late_loaded) {
@@ -87,7 +91,10 @@ static int do_get_info_legacy(void __user *arg)
     }
 #endif
 
-    if (is_manager()) {
+    /* [ShizuSU 补丁2] GET_INFO 门控：照搬 7kimisu dispatch.c:53/:84。
+     * 只有「真·管理器 且 隐身未开」才上报 MANAGER 标志；stealth 开启时压制该 flag，
+     * 但内核 is_manager() 保持真实（不伪造/不改动认主状态），故管理器仍可回写本开关。 */
+    if (is_manager() && !ksu_stealth_is_enabled()) {
         cmd.flags |= KSU_GET_INFO_FLAG_MANAGER;
     }
     if (ksu_late_loaded) {
@@ -874,6 +881,35 @@ static int do_enable_kpm(void __user *arg)
     return 0;
 }
 
+#ifdef CONFIG_KSU_STEALTH
+/* [ShizuSU 补丁2] 隐身开关读写 handler（照搬 7kimisu kernel/supercall/dispatch.c:739-761）。
+ * GET 返回当前隐身态；SET 写入并由 ksu_stealth_set() 持久化到 /data/adb/shizusu/stealth。
+ * 命令表中二者 perm_check = only_manager（签名认主即放行，内核侧即多签名表校验）。 */
+static int do_stealth_get(void __user *arg)
+{
+    struct ksu_stealth_cmd cmd = { 0 };
+
+    cmd.enabled = ksu_stealth_is_enabled() ? 1 : 0;
+
+    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+static int do_stealth_set(void __user *arg)
+{
+    struct ksu_stealth_cmd cmd;
+
+    if (copy_from_user(&cmd, arg, sizeof(cmd))) {
+        return -EFAULT;
+    }
+
+    return ksu_stealth_set(cmd.enabled != 0);
+}
+#endif // CONFIG_KSU_STEALTH
+
 // IOCTL handlers mapping table
 // clang-format off
 static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
@@ -1081,6 +1117,22 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
         .name = "DYNAMIC_MANAGER_SET",
         .handler = do_dynamic_manager_set,
         .perm_check = manager_or_root
+    },
+#endif
+#ifdef CONFIG_KSU_STEALTH
+    // [ShizuSU 补丁2] 隐身开关（照搬 7kimisu dispatch.c:988-999；编号 25/26）。
+    // perm=only_manager：断代闸门安全阀 _G 变体(27/28)属不学项，首版不建。
+    {
+        .cmd = KSU_IOCTL_STEALTH_GET,
+        .name = "STEALTH_GET",
+        .handler = do_stealth_get,
+        .perm_check = only_manager
+    },
+    {
+        .cmd = KSU_IOCTL_STEALTH_SET,
+        .name = "STEALTH_SET",
+        .handler = do_stealth_set,
+        .perm_check = only_manager
     },
 #endif
     {

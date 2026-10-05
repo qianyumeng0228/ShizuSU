@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      TODO(ShizuSU 包名未定)：本 manifest 沿用 SukiSU fork 的相对组件名（.ui.security.* /
+      .magica.*），它们最终解析到 applicationId（当前继承基线 = com.sukisu.ultra）。
+      ShizuSU 自有包名落定后，applicationId 改 build.gradle.kts 即可，这里的相对组件名无需改；
+      若改为非 com.sukisu.ultra，需同步改 Kotlin 文件的 package 声明。
+    -->
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -153,6 +160,35 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="com.sukisu.ultra.magica.LAUNCH" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          [ShizuSU 补丁2] 拨号盘密令入口：*#*#<code>#*#*（照搬 7kimisu AndroidManifest.xml:91-99）。
+          这里【故意只声明 scheme、不声明 host】——按 intent filter 规则，"只声明 scheme 时所有
+          该 scheme 的 URI 都匹配"，这样任意数字的密令都会送到本 receiver，再由代码和设置里的
+          数字比对，不匹配就静默忽略。发送方可信判定（默认拨号器/预装系统应用）在代码内做。
+        -->
+        <receiver
+            android:name=".ui.security.StealthReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE" />
+
+                <data android:scheme="android_secret_code" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          [ShizuSU 补丁2] 开机后按内核状态重新同步桌面图标（照搬 7kimisu AndroidManifest.xml:102-110）。
+        -->
+        <receiver
+            android:name=".ui.security.StealthBootReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>

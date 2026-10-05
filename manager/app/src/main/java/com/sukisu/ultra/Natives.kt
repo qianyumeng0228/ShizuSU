@@ -152,6 +152,27 @@ object Natives {
     val managerUAPIVersion: Int
         external get
 
+    // ---- [ShizuSU 补丁2] 内核隐身（stealth）native 入口 ----
+    // 照搬 7kimisu Natives.kt 对应方法（对照 manager/.../Natives.kt:71 stealthSet）。
+    // 底层 ioctl：
+    //   stealthState() -> KSU_IOCTL_STEALTH_GET ('K',25, struct ksu_stealth_cmd{__u8 enabled})
+    //   stealthSet()   -> KSU_IOCTL_STEALTH_SET ('K',26, struct ksu_stealth_cmd{__u8 enabled})
+    // 内核侧 perm_check=only_manager：由多签名表加冕出的 is_manager() 把关，App 不另做签名校验。
+    // TODO(ShizuSU 集成)：以下两个 external 需在 cpp（libkernelsu）中实现对应的 JNI 函数；
+    //   当前基线 Natives.kt 无此 native，未实现时调用会抛 UnsatisfiedLinkError（Stealth.kt 已 runCatching 兜底为 -1/false）。
+
+    /**
+     * 读隐身开关。
+     * @return 1 = 隐身开, 0 = 隐身关, -1 = 内核不支持 / ioctl 失败 / 本 App 未被内核认主。
+     */
+    external fun stealthState(): Int
+
+    /**
+     * 写隐身开关并持久化（内核落到 /data/adb/shizusu/stealth）。
+     * @return true = 成功。
+     */
+    external fun stealthSet(enabled: Boolean): Boolean
+
     fun isFullFeatured(): Boolean {
         val kernelFullVersion = getFullVersion()
         return (kernelFullVersion != null && isVersionLessThan(kernelFullVersion, MINIMAL_SUPPORTED_KERNEL_FULL)) ||
@@ -211,7 +232,7 @@ object Natives {
 fun List<RootProfileFlag>.toRawFlags(): Long =
     fold(0L) { acc, flag -> acc.or(1L.shl(flag.ordinal)) }
 
-fun List<RootProfileFlag>.toOrdinalList(): List<Int> =
+fun List<RootProfileFlag>.toOrdinalList(): List =
     map { it.ordinal }
 
 fun Long.toRootProfileFlags(): List<RootProfileFlag> =

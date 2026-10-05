@@ -33,6 +33,11 @@ kernelsu-objs += manager/dynamic_manager.o
 endif
 endif
 
+# [ShizuSU 补丁2] 内核隐身（CONFIG_KSU_STEALTH=y 时编译；独立门控，与多管理器正交）
+ifeq ($(CONFIG_KSU_STEALTH),y)
+kernelsu-objs += manager/stealth.o
+endif
+
 kernelsu-objs += policy/allowlist.o
 kernelsu-objs += policy/app_profile.o
 kernelsu-objs += policy/feature.o
@@ -78,6 +83,10 @@ ccflags-y += -DCONFIG_KSU_MULTI_MANAGER_SUPPORT=1
 endif
 ifeq ($(CONFIG_KSU_DYNAMIC_MANAGER),y)
 ccflags-y += -DCONFIG_KSU_DYNAMIC_MANAGER=1
+endif
+# [ShizuSU 补丁2] 隐身开关 -> ccflags（外部模块构建时使 dispatch.c/stealth.c 内 #ifdef 可见）
+ifeq ($(CONFIG_KSU_STEALTH),y)
+ccflags-y += -DCONFIG_KSU_STEALTH=1
 endif
 endif
 
