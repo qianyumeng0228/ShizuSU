@@ -1,23 +1,24 @@
-# SukiSU Ultra
+﻿# ShizuSU
 <img align='right' src='ShizuSU-banner.png' width='220px' alt="shizusu logo">
-
 
 **English** | [简体中文](./zh/README.md) | [日本語](./ja/README.md) | [Türkçe](./tr/README.md) | [Русский](./ru/README.md)
 
-A kernel-based root solution for Android devices, forked from [`tiann/KernelSU`](https://github.com/tiann/KernelSU), and added some interesting changes.
+A kernel-based root solution for Android devices, forked from [`tiann/KernelSU`](https://github.com/tiann/KernelSU) and based on [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra), with stealth, multi-manager and module-convenience enhancements.
 
-[![Latest release](https://img.shields.io/github/v/release/SukiSU-Ultra/SukiSU-Ultra?label=Release&logo=github)](https://github.com/tiann/KernelSU/releases/latest)
-[![Channel](https://img.shields.io/badge/Follow-Telegram-blue.svg?logo=telegram)](https://t.me/Sukiksu)
+[![Latest release](https://img.shields.io/github/v/release/qianyumeng0228/ShizuSU?label=Release&logo=github)](https://github.com/qianyumeng0228/ShizuSU/releases/latest)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-orange.svg?logo=gnu)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![GitHub License](https://img.shields.io/github/license/tiann/KernelSU?logo=gnu)](/LICENSE)
+[![GitHub License](https://img.shields.io/github/license/qianyumeng0228/ShizuSU?logo=gnu)](/LICENSE)
 
 ## Features
 
 1. Kernel-based `su` and root access management
 2. [App Profile](https://kernelsu.org/guide/app-profile.html): Lock up the root power in a cage
-3. Support non-GKI and GKI 1.0
-4. KPM Support
-5. Tweaks to the manager theme and the built-in susfs management tool.
+3. **Multi-manager support**: one kernel recognizes multiple managers through a built-in signature table (RKSU / KernelSU / WKSU / KowSU / KSUN / MKSU), plus hot registration and persistence (`/data/adb/shizusu/manager`)
+4. **Stealth mode**: toggle at `/data/adb/shizusu/stealth`; when enabled, the info report no longer exposes manager status to apps
+5. **Module convenience**: backup / restore of modules and allowlist, batch installation that collects failures instead of aborting, enable / disable / disable-all / uninstall-all management
+6. **Hiding enhancements**: susfsd query channel, optional KPROBES hook hiding (default off), hosts hiding entry tied to App Profile
+7. Support non-GKI and GKI 1.0
+8. KPM Support
 
 ## Compatibility Status
 
@@ -39,7 +40,7 @@ See [`guide/how-to-integrate.md`](guide/how-to-integrate.md)
 
 ## Translation
 
-If you need to submit a translation for the manager, please go to [Crowdin](https://crowdin.com/project/SukiSU-Ultra).
+The bundled `zh` / `ja` / `tr` / `ru` translations are inherited from the upstream project and may lag behind. If you would like to contribute translations, feel free to open a pull request.
 
 ## KPM Support
 
@@ -54,37 +55,25 @@ If you need to submit a translation for the manager, please go to [Crowdin](http
 >
 > 1. Requires `CONFIG_KPM=y`
 > 2. Non-GKI devices requires `CONFIG_KALLSYMS=y` and `CONFIG_KALLSYMS_ALL=y`
-> 3. For kernels below `4.19`, backporting from `set_memory.h` from `4.19` is required.
+> 3. For kernels below `4.19`, backporting from `set_memory.h` from `4.19` is required.
 
 ## Troubleshooting
 
 1. Device stuck upon manager app uninstallation?
    Uninstall _com.sony.playmemories.mobile_
 
-## Sponsor
-
-- [ShirkNeko](https://afdian.com/a/shirkneko) (maintainer of SukiSU)
-- [weishu](https://github.com/sponsors/tiann) (author of KernelSU)
-
-## ShirkNeko's sponsorship list
-
-- [Ktouls](https://github.com/Ktouls) Thanks so much for bringing me support.
-- [zaoqi123](https://github.com/zaoqi123) Thanks for the milk tea.
-- [wswzgdg](https://github.com/wswzgdg) Many thanks for supporting this project.
-- [yspbwx2010](https://github.com/yspbwx2010) Many thanks.
-- [DARKWWEE](https://github.com/DARKWWEE) 100 USDT
-- [Saksham Singla](https://github.com/TypeFlu) Provide and maintain the website
-- [OukaroMF](https://github.com/OukaroMF) Donation of website domain name
-
 ## License
 
 - The file in the “kernel” directory is under [GPL-2.0-only](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) license.
-- The images of the files `ic_launcher(?!.*alt.*).*` with anime character artwork are licensed under a special arrangement: drawn by [怡子曰曰](https://space.bilibili.com/10545509), the copyright is held by [明风 OuO](https://space.bilibili.com/274939213), and the vectorized icons are provided by this project. See [`LICENSE_icon_English`](./LICENSE_icon_English) and [`LICENSE_icon_SC`](./LICENSE_icon_SC) for details.
 - Except for the files or directories mentioned above, all other parts are under [GPL-3.0 or later](https://www.gnu.org/licenses/gpl-3.0.html) license.
 
 ## Credit
 
 - [KernelSU](https://github.com/tiann/KernelSU): upstream
+- [SukiSU-Ultra](https://github.com/SukiSU-Ultra/SukiSU-Ultra): base project
+- [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next): reference for module management, susfsd and hiding enhancements
+- ReSukiSU: reference for the multi-manager signature table
+- 7kimisu: reference for the stealth implementation
 - [MKSU](https://github.com/5ec1cff/KernelSU): Magic Mount
 - [RKSU](https://github.com/rsuntk/KernelsU): support non-GKI
 - [susfs](https://gitlab.com/simonpunk/susfs4ksu): An addon root hiding kernel patches and userspace module for KernelSU.
