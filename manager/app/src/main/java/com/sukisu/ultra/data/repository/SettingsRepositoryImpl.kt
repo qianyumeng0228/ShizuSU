@@ -134,6 +134,10 @@ class SettingsRepositoryImpl : SettingsRepository {
         get() = prefs.getInt("module_repo_sort_order", RepoSort.UPDATED.ordinal)
         set(value) = prefs.edit { putInt("module_repo_sort_order", value) }
 
+    override var moduleRepoBaseUrl: String
+        get() = prefs.getString("module_repo_base_url", "") ?: ""
+        set(value) = prefs.edit { putString("module_repo_base_url", value.trim()) }
+
     override var superuserShowSystemApps: Boolean
         get() = prefs.getBoolean("show_system_apps", false)
         set(value) = prefs.edit { putBoolean("show_system_apps", value) }

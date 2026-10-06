@@ -1,5 +1,6 @@
 package com.sukisu.ultra.ui.util.module
 
+import com.sukisu.ultra.data.repository.ModuleRepoConfig
 import com.sukisu.ultra.ksuApp
 import com.sukisu.ultra.ui.util.isNetworkAvailable
 import okhttp3.Request
@@ -45,7 +46,7 @@ fun stripTicks(s: String): String {
 
 fun fetchReleaseDescriptionHtml(moduleId: String, latestTag: String): String? {
     if (!isNetworkAvailable(ksuApp)) return null
-    val url = "https://modules.kernelsu.org/module/$moduleId.json"
+    val url = "${ModuleRepoConfig.baseUrl.trimEnd('/')}/module/$moduleId.json"
     return runCatching {
         ksuApp.okhttpClient.newCall(Request.Builder().url(url).build()).execute().use { resp ->
             if (!resp.isSuccessful) null else {
@@ -73,7 +74,7 @@ fun fetchReleaseDescriptionHtml(moduleId: String, latestTag: String): String? {
 
 fun fetchModuleDetail(moduleId: String): ModuleDetail? {
     if (!isNetworkAvailable(ksuApp)) return null
-    val url = "https://modules.kernelsu.org/module/$moduleId.json"
+    val url = "${ModuleRepoConfig.baseUrl.trimEnd('/')}/module/$moduleId.json"
     return runCatching {
         ksuApp.okhttpClient.newCall(Request.Builder().url(url).build()).execute().use { resp ->
             if (!resp.isSuccessful) return@use null

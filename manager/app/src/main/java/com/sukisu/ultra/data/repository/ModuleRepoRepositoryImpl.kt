@@ -13,17 +13,13 @@ import org.json.JSONObject
 
 class ModuleRepoRepositoryImpl : ModuleRepoRepository {
 
-    companion object {
-        private const val MODULES_URL = "https://modules.kernelsu.org/modules.json"
-    }
-
     override suspend fun fetchModules(): Result<List<RepoModule>> = withContext(Dispatchers.IO) {
         runCatching {
             if (!isNetworkAvailable(ksuApp)) {
                 throw Exception("Network unavailable")
             }
 
-            val request = Request.Builder().url(MODULES_URL).build()
+            val request = Request.Builder().url(ModuleRepoConfig.modulesUrl).build()
             ksuApp.okhttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     throw Exception("Fetch failed: ${response.code}")
