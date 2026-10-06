@@ -129,20 +129,25 @@ static bool check_block(struct file *fp, loff_t *pos, loff_t block_end)
 		if (certificate_size != apk_sign_keys[i].size)
 			continue;
 
-		if (certificate_size > CERT_MAX_LENGTH) {
-			pr_info("cert length overlimit\n");
+		/* [自研] 证书缓冲改为按需 kmalloc：官方上限 CERT_MAX_LENGTH=1024 是按官方管理器
+		 * 证书（约 827B）设定的栈数组；ShizuSU 自家证书 DER 为 1292B（超限），
+		 * 且 2026 年后管理器证书普遍 >1KB。动态分配支持任意证书长度，
+		 * certificate_size > INT_MAX 的防护已在函数入口检查。 */
+		char *cert = kmalloc(certificate_size, GFP_KERNEL);
+		if (!cert)
+			return false;
+		if (!read_exact(fp, cert, certificate_size, pos, certificates_end)) {
+			kfree(cert);
 			return false;
 		}
-
-		char cert[CERT_MAX_LENGTH];
-		if (!read_exact(fp, cert, certificate_size, pos, certificates_end))
-			return false;
 
 		unsigned char digest[SHA256_DIGEST_SIZE];
 		if (ksu_sha256(cert, certificate_size, digest)) {
 			pr_info("sha256 error\n");
+			kfree(cert);
 			return false;
 		}
+		kfree(cert);
 
 		char hash_str[SHA256_DIGEST_SIZE * 2 + 1];
 		hash_str[SHA256_DIGEST_SIZE * 2] = '\0';

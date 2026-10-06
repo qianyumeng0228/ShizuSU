@@ -79,7 +79,9 @@ android {
                 keyPassword = keystoreProps.getProperty("keyPassword")
                 enableV1Signing = true
                 enableV2Signing = true
-                enableV3Signing = true
+                // [ShizuSU] 关闭 v3 签名：KernelSU 系内核（官方/SukiSU/ReSukiSU 一致）只认 v2 签名块，
+                // v3 块存在即校验失败；生态各家管理器 APK 均为纯 v2。与 SukiSU v4.2.0 形态对齐。
+                enableV3Signing = false
             }
         }
     }
