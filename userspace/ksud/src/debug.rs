@@ -51,6 +51,27 @@ pub fn set_manager(pkg: &str) -> Result<()> {
     Ok(())
 }
 
+/// [ShizuSU] Crown a manager APK through the kernel dynamic-manager channel
+/// (ioctl 'K',107 = KSU_IOCTL_DYNAMIC_MANAGER_SET). Uses the KernelSU driver
+/// fd (inherited by ksud, or installed via the reboot hook if absent).
+/// The kernel validates the APK signature against the multi-signature table,
+/// resolves the package uid from packages.list, then crowns and persists it.
+pub fn manager_set(apk: &str) -> Result<()> {
+    use std::ffi::CString;
+
+    let c_apk = CString::new(apk).context("apk path contains NUL byte")?;
+    let mut cmd = crate::ksu_uapi::ksu_dynamic_manager_set_cmd {
+        path: c_apk.as_ptr() as u64,
+    };
+    let ret = crate::ksucalls::ksuctl(
+        crate::ksu_uapi::KSU_IOCTL_DYNAMIC_MANAGER_SET,
+        &raw mut cmd,
+    )
+    .context("ioctl DYNAMIC_MANAGER_SET failed")?;
+    println!("OK: crowned manager apk: {apk} (ret={ret})");
+    Ok(())
+}
+
 pub fn insmod(module: &Path, params: &[String]) -> Result<()> {
     let module = module
         .canonicalize()

@@ -186,6 +186,21 @@ enum Commands {
         #[command(subcommand)]
         command: Susfs,
     },
+
+    /// [ShizuSU] Manager activation helpers
+    Manager {
+        #[command(subcommand)]
+        command: ManagerCmd,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum ManagerCmd {
+    /// Crown the given manager APK via kernel ioctl 'K',107 (dynamic manager set)
+    Set {
+        /// Absolute path to the manager APK (e.g. /data/app/.../base.apk)
+        apk: String,
+    },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -873,6 +888,10 @@ pub fn run() -> Result<()> {
         Commands::SoftReboot => init_event::soft_reboot(),
 
         Commands::Insmod { module, params } => debug::insmod(&module, &params),
+
+        Commands::Manager { command } => match command {
+            ManagerCmd::Set { apk } => debug::manager_set(&apk),
+        },
 
         Commands::Module { command } => {
             utils::switch_mnt_ns(1)?;

@@ -34,6 +34,21 @@ fn get_git_version() -> Result<(u32, String), std::io::Error> {
 }
 
 fn configure_bindgen() {
+    // [ShizuSU] On Windows hosts NDK libclang.dll often fails to load; allow
+    // reusing a pre-generated bindings.rs (set KSU_PREBUILT_BINDINGS to its
+    // absolute path). Also skip regeneration when the output already exists.
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let out_path = PathBuf::from(&out_dir).join("bindings.rs");
+    if let Some(prebuilt) = env::var_os("KSU_PREBUILT_BINDINGS") {
+        let src = PathBuf::from(prebuilt);
+        std::fs::copy(&src, &out_path).unwrap_or_else(|error| {
+            panic!("cannot copy prebuilt bindings {}: {error}", src.display())
+        });
+        return;
+    }
+    if out_path.exists() {
+        return;
+    }
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
