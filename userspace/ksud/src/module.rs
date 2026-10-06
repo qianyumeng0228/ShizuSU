@@ -1441,7 +1441,7 @@ pub fn install_modules_batch(zips: &[String]) -> Result<()> {
     } else {
         println!("Failed ({}):", failures.len());
         for (i, (path, err)) in failures.iter().enumerate() {
-            println!("  {}. {path}\n     reason: {err}");
+            println!("  {}. {path}\n     reason: {err}", i + 1);
         }
     }
 

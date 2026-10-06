@@ -1249,10 +1249,10 @@ pub fn run() -> Result<()> {
                 // [ShizuSU 补丁4] 三个查询 + support 检查，改走 susfsd façade（照搬 Next
                 // cli.rs:823-827 分发映射：Support=>show_features(true) / Version / Variant / Features=>show_features(false)）。
                 // 通道底层复用基线 susfs::abi::send（reboot(2) 0xDEADBEEF+0xFAFAFAFA）。
-                Susfs::Status => susfsd::show_features(true),
-                Susfs::Version => susfsd::show_version(),
-                Susfs::Variant => susfsd::show_variant(),
-                Susfs::Features => susfsd::show_features(false),
+                Susfs::Status => crate::susfsd::show_features(true),
+                Susfs::Version => crate::susfsd::show_version(),
+                Susfs::Variant => crate::susfsd::show_variant(),
+                Susfs::Features => crate::susfsd::show_features(false),
                 Susfs::SetUname { release, version } => susfs::set_uname(&release, &version),
                 Susfs::EnableLog { enabled } => susfs::enable_log(enabled != 0),
                 Susfs::EnableAvcLogSpoofing { enabled } => {
