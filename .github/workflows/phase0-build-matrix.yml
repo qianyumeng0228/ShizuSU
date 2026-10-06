@@ -79,7 +79,16 @@ jobs:
           cd kernel
 
           echo "=== Building kernelsu.ko for KMI: ${{ matrix.kmi }} ==="
-          CONFIG_KSU=m CC=clang make
+          # LKM build does not parse kernel/Kconfig, so the Phase 1/2 Kconfig
+          # defaults (KSU_MULTI_MANAGER_SUPPORT/DYNAMIC_MANAGER/STEALTH = y)
+          # do NOT apply in module builds. Pass them explicitly so the
+          # four-patch code (dynamic_manager.o / stealth.o + dispatch table
+          # entries 25/26/106/107) is actually linked into kernelsu.ko.
+          CONFIG_KSU=m \
+          CONFIG_KSU_MULTI_MANAGER_SUPPORT=y \
+          CONFIG_KSU_DYNAMIC_MANAGER=y \
+          CONFIG_KSU_STEALTH=y \
+          CC=clang make
           echo "=== Build completed ==="
 
           mkdir -p /github/workspace/out
