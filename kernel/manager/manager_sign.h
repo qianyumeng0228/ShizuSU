@@ -10,6 +10,10 @@
  *
  * [照搬] 表内 6 条 size + sha256 数据逐字符来自 ReSukiSU kernel/manager/apk_sign.c:10-15
  *   (commit 648e598 快照；RKSU / 官方 KSU / WKSU / KowSU / KSUN / MKSU)。
+ * [实测] 第 7 条 SukiSU 官方管理器签名：来自官方 SukiSU_v4.2.0_40900-release.apk
+ *   (V2/V3 签名证书，CN=shirkneko，apksig 提取 DER 实测，与 apksigner 输出交叉一致)。
+ * [自研] 第 8 条 ShizuSU 自家管理器签名：来自 release 签名密钥 shizusu-release.jks
+ *   (alias=shizusu；与 ShizuSU v1.0.1 APK 的 V3 签名证书 SHA-256 一致)。
  */
 
 struct apk_sign_key {
@@ -24,10 +28,12 @@ static const struct apk_sign_key apk_sign_keys[] = {
 	{ 0x375,  "484fcba6e6c43b1fb09700633bf2fb4758f13cb0b2f4457b80d075084b26c588" }, /* KowSU */
 	{ 0x3e6,  "79e590113c4c4c0c222978e413a5faa801666957b1212a328e46c00c69821bf7" }, /* KSUN */
 	{ 384,    "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4" }, /* MKSU */
+	{ 860,    "947ae944f3de4ed4c21a7e4f7953ecf351bfa2b36239da37a34111ad29993eef" }, /* SukiSU-Ultra 官方 (v4.2.0) */
+	{ 1292,   "9c935a673f22ed355e3c13ad277d539c281310be4dcc59b53a275c8c6dab373e" }, /* ShizuSU 自家 */
 #ifdef KSU_MANAGER_EXTRA_SIZE
-	/* [自研] ShizuSU 自家管理器签名，由 kernel/Kbuild 通过
+	/* [自研] 额外签名注入位：由 kernel/Kbuild 通过
 	 *   ccflags -DKSU_MANAGER_EXTRA_SIZE=<der_len> -DKSU_MANAGER_EXTRA_HASH="<hex>"
-	 * 编译期注入到表尾；未定义时表仅含上面 6 条上游签名。换自家管理器证书时改这里。 */
+	 * 编译期追加到表尾；未定义时不追加。换证书/加签名时优先直接改上方表项。 */
 	{ KSU_MANAGER_EXTRA_SIZE, KSU_MANAGER_EXTRA_HASH },
 #endif
 };
