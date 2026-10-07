@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DeveloperMode
+import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.DisplaySettings
 import androidx.compose.material.icons.filled.Fence
 import androidx.compose.material.icons.filled.FlashOn
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.SystemUpdateAlt
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.Icon
@@ -40,6 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,22 +50,31 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
+import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
 import com.sukisu.ultra.ui.UiMode
 import com.sukisu.ultra.ui.component.KsuIsValid
+import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
 import com.sukisu.ultra.ui.component.material.ExpressiveScaffold
 import com.sukisu.ultra.ui.component.material.SegmentedColumn
 import com.sukisu.ultra.ui.component.material.SegmentedDropdownItem
 import com.sukisu.ultra.ui.component.material.SegmentedListItem
+import com.sukisu.ultra.ui.component.material.SegmentedStringItem
 import com.sukisu.ultra.ui.component.material.SegmentedSwitchItem
 import com.sukisu.ultra.ui.component.material.SendLogBottomSheet
 import com.sukisu.ultra.ui.component.material.SnackBarHost
 import com.sukisu.ultra.ui.component.material.expressiveTopAppBarColors
+import com.sukisu.ultra.ui.security.Stealth
+import com.sukisu.ultra.ui.security.StealthCodeStore
+import com.sukisu.ultra.ui.security.restartUiFresh
 import com.sukisu.ultra.ui.util.LocaleHelper
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * @author weishu
@@ -207,6 +219,25 @@ fun SettingPagerMaterial(
                             headlineContent = { Text(toolsTitle) },
                             supportingContent = { Text(stringResource(id = R.string.settings_tools_summary)) },
                             leadingContent = { Icon(Icons.Filled.Fence, toolsTitle) },
+                            trailingContent = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    null
+                                )
+                            }
+                        )
+                    }
+                )
+                // [ShizuSU 补丁] hosts 隐藏入口（风格照抄上方 tools 入口）
+                val hostsTitle = stringResource(id = R.string.hosts_title)
+                SegmentedColumn(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                    content = listOf {
+                        SegmentedListItem(
+                            onClick = actions.onOpenHosts,
+                            headlineContent = { Text(hostsTitle) },
+                            supportingContent = { Text(stringResource(id = R.string.hosts_summary)) },
+                            leadingContent = { Icon(Icons.Filled.VisibilityOff, hostsTitle) },
                             trailingContent = {
                                 Icon(
                                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -394,6 +425,85 @@ fun SettingPagerMaterial(
                         }
                     )
                 )
+
+                // [ShizuSU 补丁] 隐身模式设置（照搬 7kimisu v2.29 设置页 stealth 两条目）
+                val stealthContext = LocalContext.current
+                val stealthTooShortMsg = stringResource(id = R.string.stealth_code_too_short)
+                val prefsRepo = remember { SettingsRepositoryImpl() }
+                var stealthCode by remember { mutableStateOf(prefsRepo.stealthCode) }
+                LaunchedEffect(Unit) {
+                    val real = withContext(Dispatchers.IO) {
+                        StealthCodeStore.sync()
+                        StealthCodeStore.effectiveCode(stealthContext)
+                    }
+                    if (real.isNotBlank() && real != stealthCode) stealthCode = real
+                }
+                val showHideConfirm = rememberSaveable { mutableStateOf(false) }
+                val hideConfirmDialog = rememberConfirmDialog(
+                    onConfirm = {
+                        showHideConfirm.value = false
+                        // 开关失败不能静默；失败时不重建界面，免得装成"隐身已开"骗用户
+                        val err = Stealth.setEnabledReporting(true)
+                        if (err != null) {
+                            android.widget.Toast.makeText(stealthContext, err, android.widget.Toast.LENGTH_LONG).show()
+                        } else {
+                            Stealth.ensureLauncherVisible(stealthContext)
+                            restartUiFresh(stealthContext)
+                        }
+                    },
+                    onDismiss = { showHideConfirm.value = false }
+                )
+
+                SegmentedColumn(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                    content = listOf(
+                        {
+                            SegmentedListItem(
+                                onClick = { showHideConfirm.value = true },
+                                headlineContent = { Text(stringResource(id = R.string.stealth_title)) },
+                                supportingContent = { Text(stringResource(id = R.string.stealth_summary)) },
+                                leadingContent = { Icon(Icons.Filled.VisibilityOff, stringResource(id = R.string.stealth_title)) },
+                                trailingContent = {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        null
+                                    )
+                                }
+                            )
+                        },
+                        {
+                            SegmentedStringItem(
+                                icon = Icons.Filled.Dialpad,
+                                title = stringResource(id = R.string.stealth_code_title),
+                                value = stealthCode,
+                                summary = "*#*#${stealthCode}#*#*",
+                                onValueChange = { raw ->
+                                    val code = raw.filter { it.isDigit() }.take(12)
+                                    if (code.length < 4) {
+                                        android.widget.Toast.makeText(
+                                            stealthContext,
+                                            stealthTooShortMsg,
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    } else if (code != stealthCode) {
+                                        stealthCode = code
+                                        prefsRepo.stealthCode = code
+                                        // 再写一份到 /data/adb：卸载重装后密令依然有效（否则会锁死）
+                                        Thread { StealthCodeStore.write(code) }.start()
+                                    }
+                                }
+                            )
+                        }
+                    )
+                )
+
+                if (showHideConfirm.value) {
+                    hideConfirmDialog.showConfirm(
+                        title = stringResource(id = R.string.stealth_confirm_title),
+                        content = stringResource(id = R.string.stealth_confirm_content, stealthCode),
+                        confirm = stringResource(id = R.string.stealth_confirm_button)
+                    )
+                }
             }
 
             if (uiState.isLkmMode) {

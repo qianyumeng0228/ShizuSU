@@ -18,6 +18,12 @@ import com.sukisu.ultra.ui.UiMode
 import com.sukisu.ultra.ui.navigation3.LocalNavigator
 import com.sukisu.ultra.ui.navigation3.Route
 import com.sukisu.ultra.ui.util.spoofCpu
+import com.sukisu.ultra.ui.util.backupAllowlistToUriTar
+import com.sukisu.ultra.ui.util.backupModulesToUri
+import com.sukisu.ultra.ui.util.restoreAllowlistFromUriTar
+import com.sukisu.ultra.ui.util.restoreModulesFromUri
+import com.sukisu.ultra.ui.util.shisuAllowlistBackupSuggestedName
+import com.sukisu.ultra.ui.util.shisuModulesBackupSuggestedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +73,73 @@ fun ToolsScreen() {
         }
     }
 
+    // [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复入口。
+    // IO 全部委托 ui/util/ModuleBackupRestore.kt（照搬 KernelSU-Next BackupRestore.kt 的四个 suspend 函数），
+    // SAF + Toast 反馈沿用本屏 backupLauncher/restoreLauncher 写法；建议文件名用 shisu*SuggestedName()。
+    val backupModulesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/x-tar")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val success = backupModulesToUri(uri)
+            Toast.makeText(
+                context,
+                context.getString(
+                    if (success) R.string.modules_backup_success else R.string.modules_backup_failed
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val restoreModulesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val success = restoreModulesFromUri(uri)
+            Toast.makeText(
+                context,
+                context.getString(
+                    if (success) R.string.modules_restore_success else R.string.modules_restore_failed
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val backupAllowlistTarLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/x-tar")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val success = backupAllowlistToUriTar(uri)
+            Toast.makeText(
+                context,
+                context.getString(
+                    if (success) R.string.allowlist_tar_backup_success else R.string.allowlist_tar_backup_failed
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val restoreAllowlistTarLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val success = restoreAllowlistFromUriTar(uri)
+            Toast.makeText(
+                context,
+                context.getString(
+                    if (success) R.string.allowlist_tar_restore_success else R.string.allowlist_tar_restore_failed
+                ),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     LaunchedEffect(Unit) {
         val current = withContext(Dispatchers.IO) { !isSelinuxPermissive() }
         selinuxEnforcing = current
@@ -105,6 +178,18 @@ fun ToolsScreen() {
         },
         onRestoreAllowlist = {
             restoreLauncher.launch(arrayOf("*/*"))
+        },
+        onBackupModules = {
+            backupModulesLauncher.launch(shisuModulesBackupSuggestedName())
+        },
+        onRestoreModules = {
+            restoreModulesLauncher.launch(arrayOf("*/*"))
+        },
+        onBackupAllowlistTar = {
+            backupAllowlistTarLauncher.launch(shisuAllowlistBackupSuggestedName())
+        },
+        onRestoreAllowlistTar = {
+            restoreAllowlistTarLauncher.launch(arrayOf("*/*"))
         },
         onNavigateToUmountManager = {
             navigator.push(Route.UmountManager)

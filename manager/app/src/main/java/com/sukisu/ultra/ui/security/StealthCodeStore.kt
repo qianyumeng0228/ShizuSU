@@ -2,10 +2,8 @@ package com.sukisu.ultra.ui.security
 
 import android.content.Context
 import com.topjohnwu.superuser.ShellUtils
-// TODO(ShizuSU 集成)：基线设置仓库为 com.sukisu.ultra.data.repository.SettingsRepositoryImpl，
-//   需新增可写属性 `stealthCode: String?`（对应 7kimisu SettingsRepositoryImpl().stealthCode）。
-// import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
-import com.sukisu.ultra.ui.util.getRootShell // TODO(ShizuSU 集成)：确认基线 root shell 入口（KsuCli.kt 附近）
+import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
+import com.sukisu.ultra.ui.util.getRootShell
 
 /**
  * 隐身密令的「跨卸载备份」。
@@ -39,13 +37,10 @@ object StealthCodeStore {
 
     /**
      * 默认密令。
-     * [自研] ShizuSU 编译期可配：优先取 BuildConfig.STEALTH_SECRET_CODE，未配置时回落 "70707"。
-     *   （对应清单 2.4「密令常量建议编译期可配」。注：密令全程在 App 层，内核不存任何密令常量。）
+     * [自研] 当前与上游 v2.29 一致硬编码 "70707"；编译期可配（BuildConfigField）为后续可选优化。
+     *   （注：密令全程在 App 层，内核不存任何密令常量。）
      */
-    const val DEFAULT_CODE: String =
-        // TODO(ShizuSU 集成)：在 app/build.gradle.kts 配 BuildConfigField
-        //   "STEALTH_SECRET_CODE" to "\"70707\""，然后改为引用 com.sukisu.ultra.BuildConfig。
-        "70707"
+    const val DEFAULT_CODE: String = "70707"
 
     /**
      * KernelSU 自己那些文件的 SELinux 类型(和 ksud 的 restorecon.rs 里同一个值)。
@@ -110,10 +105,7 @@ object StealthCodeStore {
      */
     fun effectiveCode(context: Context? = null): String {
         read()?.let { return it }
-        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl().stealthCode（String?）后替换为上游原行：
-        //   val pref = runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
-        // 显式标注 String? —— 占位若写 runCatching { null } 会被推成 Nothing?，与 sanitize(String?) 不匹配。
-        val pref: String? = null
+        val pref = runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
         return sanitize(pref) ?: DEFAULT_CODE
     }
 
@@ -126,12 +118,8 @@ object StealthCodeStore {
     fun acceptedCodes(context: Context? = null): Set<String> {
         val codes = LinkedHashSet<String>()
         read()?.let { codes.add(it) }
-        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl().stealthCode 后替换为上游原行：
-        //   runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
-        //       ?.let { sanitize(it) }?.let { codes.add(it) }
-        // 显式 String? 占位（避免 runCatching { null } 推成 Nothing?）。
-        val pref: String? = null
-        pref?.let { sanitize(it) }?.let { codes.add(it) }
+        runCatching { SettingsRepositoryImpl().stealthCode }.getOrNull()
+            ?.let { sanitize(it) }?.let { codes.add(it) }
         return if (codes.isEmpty()) setOf(DEFAULT_CODE) else codes
     }
 
@@ -142,17 +130,13 @@ object StealthCodeStore {
      * @return 是否需要界面刷新
      */
     fun sync(): Boolean {
-        // TODO(ShizuSU 集成)：接入 SettingsRepositoryImpl() 后恢复上游 when 双向同步（v2.29 原逻辑）：
-        //   val repo = runCatching { SettingsRepositoryImpl() }.getOrNull() ?: return false
-        //   val pref = sanitize(repo.stealthCode)
-        //   val disk = read()
-        //   return when {
-        //       disk == null && pref != null -> { write(pref); false }
-        //       disk != null && disk != pref  -> { repo.stealthCode = disk; true }
-        //       else -> false
-        //   }
-        // 当前占位：无 App 端密令可读，仅读一次磁盘（保持与上游同样的 IO 触发），恒不刷新界面。
-        read()
-        return false
+        val repo = runCatching { SettingsRepositoryImpl() }.getOrNull() ?: return false
+        val pref = sanitize(repo.stealthCode)
+        val disk = read()
+        return when {
+            disk == null && pref != null -> { write(pref); false }
+            disk != null && disk != pref  -> { repo.stealthCode = disk; true }
+            else -> false
+        }
     }
 }

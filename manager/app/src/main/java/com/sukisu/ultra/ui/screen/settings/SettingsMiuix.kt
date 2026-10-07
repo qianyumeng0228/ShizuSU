@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DeveloperMode
+import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.DisplaySettings
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Info
@@ -35,26 +36,39 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.SystemUpdateAlt
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sukisu.ultra.R
+import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
 import com.sukisu.ultra.ui.UiMode
 import com.sukisu.ultra.ui.component.KsuIsValid
+import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
 import com.sukisu.ultra.ui.component.dialog.rememberLoadingDialog
 import com.sukisu.ultra.ui.component.miuix.SendLogDialog
+import com.sukisu.ultra.ui.component.miuix.StringEditArrow
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
+import com.sukisu.ultra.ui.security.Stealth
+import com.sukisu.ultra.ui.security.StealthCodeStore
+import com.sukisu.ultra.ui.security.restartUiFresh
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.util.BlurredBar
 import com.sukisu.ultra.ui.util.LocaleHelper
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
@@ -261,6 +275,108 @@ fun SettingPagerMiuix(
                                 onClick = {
                                     actions.onOpenTools()
                                 }
+                            )
+                        }
+                        // [ShizuSU 补丁] hosts 隐藏入口（风格照抄上方 tools 入口）
+                        val hostsTitle = stringResource(id = R.string.hosts_title)
+                        Card(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .fillMaxWidth()
+                        ) {
+                            ArrowPreference(
+                                title = hostsTitle,
+                                summary = stringResource(id = R.string.hosts_summary),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.VisibilityOff,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = hostsTitle,
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                onClick = {
+                                    actions.onOpenHosts()
+                                }
+                            )
+                        }
+                        // [ShizuSU 补丁] 隐身模式设置（照搬 7kimisu v2.29 Miuix 设置页 stealth 两条目）
+                        val stealthContext = LocalContext.current
+                        val stealthTooShortMsg = stringResource(id = R.string.stealth_code_too_short)
+                        val prefsRepo = remember { SettingsRepositoryImpl() }
+                        var stealthCode by remember { mutableStateOf(prefsRepo.stealthCode) }
+                        LaunchedEffect(Unit) {
+                            val real = withContext(Dispatchers.IO) {
+                                StealthCodeStore.sync()
+                                StealthCodeStore.effectiveCode(stealthContext)
+                            }
+                            if (real.isNotBlank() && real != stealthCode) stealthCode = real
+                        }
+                        val showHideConfirm = rememberSaveable { mutableStateOf(false) }
+                        val hideConfirmDialog = rememberConfirmDialog(
+                            onConfirm = {
+                                showHideConfirm.value = false
+                                val err = Stealth.setEnabledReporting(true)
+                                if (err != null) {
+                                    android.widget.Toast.makeText(stealthContext, err, android.widget.Toast.LENGTH_LONG).show()
+                                } else {
+                                    Stealth.ensureLauncherVisible(stealthContext)
+                                    restartUiFresh(stealthContext)
+                                }
+                            },
+                            onDismiss = { showHideConfirm.value = false }
+                        )
+                        Card(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .fillMaxWidth()
+                        ) {
+                            ArrowPreference(
+                                title = stringResource(id = R.string.stealth_title),
+                                summary = stringResource(id = R.string.stealth_summary),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.VisibilityOff,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.stealth_title),
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                onClick = { showHideConfirm.value = true }
+                            )
+                            StringEditArrow(
+                                title = stringResource(id = R.string.stealth_code_title),
+                                value = stealthCode,
+                                summary = "*#*#${stealthCode}#*#*",
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.Dialpad,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.stealth_code_title),
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                onValueChange = { raw ->
+                                    val code = raw.filter { it.isDigit() }.take(12)
+                                    if (code.length < 4) {
+                                        android.widget.Toast.makeText(
+                                            stealthContext,
+                                            stealthTooShortMsg,
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    } else if (code != stealthCode) {
+                                        stealthCode = code
+                                        prefsRepo.stealthCode = code
+                                        Thread { StealthCodeStore.write(code) }.start()
+                                    }
+                                }
+                            )
+                        }
+                        if (showHideConfirm.value) {
+                            hideConfirmDialog.showConfirm(
+                                title = stringResource(id = R.string.stealth_confirm_title),
+                                content = stringResource(id = R.string.stealth_confirm_content, stealthCode),
+                                confirm = stringResource(id = R.string.stealth_confirm_button)
                             )
                         }
                     }

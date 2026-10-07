@@ -161,6 +161,14 @@ fun ToolsMiuix(
                         onBackup = actions.onBackupAllowlist,
                         onRestore = actions.onRestoreAllowlist
                     )
+
+                    // [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复区段（IO 委托 ModuleBackupRestore.kt）
+                    ModulesBackupSectionMiuix(
+                        onBackupModules = actions.onBackupModules,
+                        onRestoreModules = actions.onRestoreModules,
+                        onBackupAllowlistTar = actions.onBackupAllowlistTar,
+                        onRestoreAllowlistTar = actions.onRestoreAllowlistTar
+                    )
                 }
             }
         }
@@ -233,6 +241,75 @@ private fun AllowlistBackupSectionMiuix(
                 )
             },
             onClick = onRestore
+        )
+    }
+}
+
+// [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复区段：Card + 4 个 ArrowPreference，风格照抄
+// AllowlistBackupSectionMiuix。IO 由 ToolsScreen 的 launcher 委托 ui/util/ModuleBackupRestore.kt。
+@Composable
+private fun ModulesBackupSectionMiuix(
+    onBackupModules: () -> Unit,
+    onRestoreModules: () -> Unit,
+    onBackupAllowlistTar: () -> Unit,
+    onRestoreAllowlistTar: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .padding(vertical = 12.dp)
+            .fillMaxWidth(),
+    ) {
+        ArrowPreference(
+            title = stringResource(R.string.modules_backup_title),
+            summary = stringResource(R.string.modules_backup_summary_picker),
+            startAction = {
+                Icon(
+                    imageVector = Icons.Rounded.Backup,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(R.string.modules_backup_title),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onBackupModules
+        )
+        ArrowPreference(
+            title = stringResource(R.string.modules_restore_title),
+            summary = stringResource(R.string.modules_restore_summary_picker),
+            startAction = {
+                Icon(
+                    imageVector = Icons.Rounded.Restore,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(R.string.modules_restore_title),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onRestoreModules
+        )
+        ArrowPreference(
+            title = stringResource(R.string.allowlist_tar_backup_title),
+            summary = stringResource(R.string.allowlist_tar_backup_summary_picker),
+            startAction = {
+                Icon(
+                    imageVector = Icons.Rounded.Backup,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(R.string.allowlist_tar_backup_title),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onBackupAllowlistTar
+        )
+        ArrowPreference(
+            title = stringResource(R.string.allowlist_tar_restore_title),
+            summary = stringResource(R.string.allowlist_tar_restore_summary_picker),
+            startAction = {
+                Icon(
+                    imageVector = Icons.Rounded.Restore,
+                    modifier = Modifier.padding(end = 6.dp),
+                    contentDescription = stringResource(R.string.allowlist_tar_restore_title),
+                    tint = colorScheme.onBackground
+                )
+            },
+            onClick = onRestoreAllowlistTar
         )
     }
 }

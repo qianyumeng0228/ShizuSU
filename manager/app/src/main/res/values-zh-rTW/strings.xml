@@ -309,6 +309,26 @@
     <string name="allowlist_restore_summary_picker">選擇備份文件進行導入</string>
     <string name="allowlist_restore_success">還原成功,重啟生效</string>
     <string name="allowlist_restore_failed">還原失敗</string>
+    <!-- [ShizuSU 补丁] 模組 / 允許列表(tar) 備份還原,移植自 KernelSU-Next BackupRestore.kt -->
+    <string name="modules_backup_title">備份模組</string>
+    <string name="modules_backup_summary_picker">選擇位置將已安裝模組導出為 tar 壓縮檔</string>
+    <string name="modules_restore_title">還原模組</string>
+    <string name="modules_restore_summary_picker">選擇模組 tar 備份檔案進行導入</string>
+    <string name="modules_backup_success">備份成功</string>
+    <string name="modules_backup_failed">備份失敗</string>
+    <string name="modules_restore_success">還原成功,重啟後生效</string>
+    <string name="modules_restore_failed">還原失敗</string>
+    <string name="allowlist_tar_backup_title">備份允許列表 (tar)</string>
+    <string name="allowlist_tar_backup_summary_picker">選擇位置將允許列表導出為 tar 壓縮檔</string>
+    <string name="allowlist_tar_restore_title">還原允許列表 (tar)</string>
+    <string name="allowlist_tar_restore_summary_picker">選擇允許列表 tar 備份檔案進行導入</string>
+    <string name="allowlist_tar_backup_success">備份成功</string>
+    <string name="allowlist_tar_backup_failed">備份失敗</string>
+    <string name="allowlist_tar_restore_success">還原成功,重啟後生效</string>
+    <string name="allowlist_tar_restore_failed">還原失敗</string>
+    <!-- [ShizuSU 补丁] hosts 隱藏 -->
+    <string name="hosts_title">Hosts 隱藏</string>
+    <string name="hosts_summary">管理 hosts 條目以躲避偵測</string>
     <!-- CPU Spoof -->
     <string name="tools_spoof_cpu_title">CPU 身份偽裝</string>
     <string name="tools_spoof_cpu_summary">偽裝 CPU MIDR、HWCAP 和 vvar</string>
@@ -536,4 +556,13 @@
     <string name="home_zygisk_not_installed">未安裝</string>
     <string name="home_zygisk_disabled">已停用</string>
     <string name="home_zygisk_reboot_required">需要重啟</string>
+
+    <!-- ShizuSU 补丁2 · 隐身设置界面文案（照搬 7kimisu v2.29 設置頁文案，繁體轉換） -->
+    <string name="stealth_title">隱身模式</string>
+    <string name="stealth_summary">介面偽裝成未安裝,超級使用者/模組等頁面全部隱藏</string>
+    <string name="stealth_code_title">隱身密令</string>
+    <string name="stealth_code_too_short">密令至少 4 位數字</string>
+    <string name="stealth_confirm_title">開啟隱身模式?</string>
+    <string name="stealth_confirm_content">開啟後本管理器會顯示為「未安裝」,超級使用者/模組等頁面全部隱藏。\n\n桌面圖示保持可見(不會被隱藏,點圖示即可進入)。\n\n關閉方式:撥號盤輸入 *#*#%1$s#*#*</string>
+    <string name="stealth_confirm_button">開啟</string>
 </resources>

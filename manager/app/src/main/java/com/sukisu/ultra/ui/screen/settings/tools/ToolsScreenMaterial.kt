@@ -134,6 +134,14 @@ fun ToolsMaterial(
                         onBackup = actions.onBackupAllowlist,
                         onRestore = actions.onRestoreAllowlist
                     )
+
+                    // [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复区段（IO 委托 ModuleBackupRestore.kt）
+                    ModulesBackupSectionMaterial(
+                        onBackupModules = actions.onBackupModules,
+                        onRestoreModules = actions.onRestoreModules,
+                        onBackupAllowlistTar = actions.onBackupAllowlistTar,
+                        onRestoreAllowlistTar = actions.onRestoreAllowlistTar
+                    )
                 }
             }
         }
@@ -206,6 +214,78 @@ private fun AllowlistBackupSectionMaterial(
                         )
                     },
                     onClick = onRestore
+                )
+            }
+        )
+    )
+}
+
+// [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复区段：4 个条目，风格照抄 AllowlistBackupSectionMaterial。
+// IO 由 ToolsScreen 的 launcher 委托 ui/util/ModuleBackupRestore.kt，本 composable 只负责展示与回调。
+@Composable
+private fun ModulesBackupSectionMaterial(
+    onBackupModules: () -> Unit,
+    onRestoreModules: () -> Unit,
+    onBackupAllowlistTar: () -> Unit,
+    onRestoreAllowlistTar: () -> Unit
+) {
+    SegmentedColumn(
+        modifier = Modifier.padding(vertical = 12.dp),
+        content = listOf(
+            {
+                SegmentedListItem(
+                    headlineContent = { Text(stringResource(R.string.modules_backup_title)) },
+                    supportingContent = { Text(stringResource(R.string.modules_backup_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Backup,
+                            contentDescription = stringResource(R.string.modules_backup_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = onBackupModules
+                )
+            },
+            {
+                SegmentedListItem(
+                    headlineContent = { Text(stringResource(R.string.modules_restore_title)) },
+                    supportingContent = { Text(stringResource(R.string.modules_restore_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Restore,
+                            contentDescription = stringResource(R.string.modules_restore_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = onRestoreModules
+                )
+            },
+            {
+                SegmentedListItem(
+                    headlineContent = { Text(stringResource(R.string.allowlist_tar_backup_title)) },
+                    supportingContent = { Text(stringResource(R.string.allowlist_tar_backup_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Backup,
+                            contentDescription = stringResource(R.string.allowlist_tar_backup_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = onBackupAllowlistTar
+                )
+            },
+            {
+                SegmentedListItem(
+                    headlineContent = { Text(stringResource(R.string.allowlist_tar_restore_title)) },
+                    supportingContent = { Text(stringResource(R.string.allowlist_tar_restore_summary_picker)) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Rounded.Restore,
+                            contentDescription = stringResource(R.string.allowlist_tar_restore_title),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = onRestoreAllowlistTar
                 )
             }
         )

@@ -48,8 +48,7 @@ object Stealth {
     const val STEALTH_FLAG_PATH = "/data/adb/shizusu/stealth"
 
     /** 内核里的开关:1 = 开启,0 = 关闭,其它(-1) = 内核不支持 / 读取失败 / 没被认主 */
-    // TODO(ShizuSU 集成)：Natives.stealthState() 需在 Natives.kt + native JNI 中实现
-    //   （ioctl KSU_IOCTL_STEALTH_GET，'K',25）。见 IMPLEMENTATION.md「App 侧集成清单」。
+    // 已实现：见 cpp/jni.cc Java_com_sukisu_ultra_Natives_stealthState（ioctl KSU_IOCTL_STEALTH_GET，'K',25）。
     fun kernelState(): Int = runCatching { Natives.stealthState() }.getOrDefault(-1)
 
     /**
@@ -100,8 +99,7 @@ object Stealth {
      */
     fun kernelLooksOurs(): Boolean = runCatching { Natives.isManager }.getOrDefault(false)
 
-    // TODO(ShizuSU 集成)：Natives.stealthSet(enabled) 需在 Natives.kt + native JNI 中实现
-    //   （ioctl KSU_IOCTL_STEALTH_SET，'K',26）。
+    // 已实现：见 cpp/jni.cc Java_com_sukisu_ultra_Natives_stealthSet（ioctl KSU_IOCTL_STEALTH_SET，'K',26）。
     fun setEnabled(enabled: Boolean): Boolean =
         runCatching { Natives.stealthSet(enabled) }.getOrDefault(false)
 

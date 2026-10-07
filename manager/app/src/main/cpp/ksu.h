@@ -53,6 +53,11 @@ int set_selinux_hide_enabled(bool enabled);
 
 bool is_selinux_hide_enabled();
 
+// Stealth (hide manager UI): when enabled the kernel stops reporting the
+// MANAGER flag, so the app disguises itself as "not installed".
+bool stealth_get(bool *enabled);
+bool stealth_set(bool enabled);
+
 bool get_allow_list(struct ksu_new_get_allow_list_cmd *);
 
 bool get_full_version(char* buff);

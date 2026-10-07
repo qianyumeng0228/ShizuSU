@@ -442,3 +442,17 @@ Java_com_sukisu_ultra_Natives_getHookType(JNIEnv *env, jobject) {
     }
     return nullptr;
 }
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_sukisu_ultra_Natives_stealthState(JNIEnv *env, jobject) {
+    bool enabled = false;
+    if (!stealth_get(&enabled)) return -1;
+    return enabled ? 1 : 0;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_sukisu_ultra_Natives_stealthSet(JNIEnv *env, jobject, jboolean enabled) {
+    return stealth_set(enabled == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}

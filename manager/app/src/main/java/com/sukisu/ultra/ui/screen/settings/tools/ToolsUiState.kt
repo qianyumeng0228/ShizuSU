@@ -17,6 +17,11 @@ data class ToolsActions(
     val onSelinuxToggle: (Boolean) -> Unit = {},
     val onBackupAllowlist: () -> Unit = {},
     val onRestoreAllowlist: () -> Unit = {},
+    // [ShizuSU 补丁] 模块 / allowlist(tar) 备份恢复入口（IO 见 ui/util/ModuleBackupRestore.kt）
+    val onBackupModules: () -> Unit = {},
+    val onRestoreModules: () -> Unit = {},
+    val onBackupAllowlistTar: () -> Unit = {},
+    val onRestoreAllowlistTar: () -> Unit = {},
     val onNavigateToUmountManager: () -> Unit = {},
     val onOpenSpoofCpuDialog: () -> Unit = {},
     val onDismissSpoofCpuDialog: () -> Unit = {},

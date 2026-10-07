@@ -105,4 +105,9 @@ sealed interface Route : NavKey, Parcelable {
     @Parcelize
     @Serializable
     data object UmountManager: Route
+
+    // [ShizuSU 补丁] hosts 隐藏面板路由
+    @Parcelize
+    @Serializable
+    data object Hosts: Route
 }

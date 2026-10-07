@@ -439,6 +439,26 @@
     <string name="allowlist_restore_summary_picker">Choose a backup file to import</string>
     <string name="allowlist_restore_success">Restoration successful. Changes will take effect after restart</string>
     <string name="allowlist_restore_failed">Restore failed</string>
+    <!-- [ShizuSU 补丁] module / allowlist(tar) backup-restore, ported from KernelSU-Next BackupRestore.kt -->
+    <string name="modules_backup_title">Backup modules</string>
+    <string name="modules_backup_summary_picker">Choose a location to export installed modules as a tar archive</string>
+    <string name="modules_restore_title">Restore modules</string>
+    <string name="modules_restore_summary_picker">Choose a modules tar backup to import</string>
+    <string name="modules_backup_success">Backup succeeded</string>
+    <string name="modules_backup_failed">Backup failed</string>
+    <string name="modules_restore_success">Restoration successful. Changes will take effect after restart</string>
+    <string name="modules_restore_failed">Restore failed</string>
+    <string name="allowlist_tar_backup_title">Backup allowlist (tar)</string>
+    <string name="allowlist_tar_backup_summary_picker">Choose a location to export the allowlist as a tar archive</string>
+    <string name="allowlist_tar_restore_title">Restore allowlist (tar)</string>
+    <string name="allowlist_tar_restore_summary_picker">Choose an allowlist tar backup to import</string>
+    <string name="allowlist_tar_backup_success">Backup succeeded</string>
+    <string name="allowlist_tar_backup_failed">Backup failed</string>
+    <string name="allowlist_tar_restore_success">Restoration successful. Changes will take effect after restart</string>
+    <string name="allowlist_tar_restore_failed">Restore failed</string>
+    <!-- [ShizuSU 补丁] hosts hide -->
+    <string name="hosts_title">Hosts hide</string>
+    <string name="hosts_summary">Manage hosts entries to hide from detection</string>
     <!-- CPU Spoof -->
     <string name="tools_spoof_cpu_title">CPU identity spoofing</string>
     <string name="tools_spoof_cpu_summary">Mask real CPU MIDR, HWCAP and vvar</string>
@@ -644,4 +664,13 @@
     <string name="home_zygisk_not_installed">Not installed</string>
     <string name="home_zygisk_disabled">Disabled</string>
     <string name="home_zygisk_reboot_required">Reboot required</string>
+
+    <!-- ShizuSU 补丁2 · 隐身设置界面文案（照搬 7kimisu v2.29 设置页硬编码文案） -->
+    <string name="stealth_title">Stealth mode</string>
+    <string name="stealth_summary">UI disguises itself as not installed; superuser/module pages are all hidden</string>
+    <string name="stealth_code_title">Stealth secret code</string>
+    <string name="stealth_code_too_short">Secret code must be at least 4 digits</string>
+    <string name="stealth_confirm_title">Enable stealth mode?</string>
+    <string name="stealth_confirm_content">Once enabled, this manager will show as not installed; superuser/module pages are all hidden.\n\nThe launcher icon stays visible (it is not hidden — tap the icon to enter).\n\nTo turn it off: enter *#*#%1$s#*#* in the dialer.</string>
+    <string name="stealth_confirm_button">Enable</string>
 </resources>

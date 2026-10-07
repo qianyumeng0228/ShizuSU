@@ -179,6 +179,10 @@ class SettingsRepositoryImpl : SettingsRepository {
         get() = prefs.getBoolean(KEY_USE_SOFT_REBOOT, false)
         set(value) = prefs.edit { putBoolean(KEY_USE_SOFT_REBOOT, value) }
 
+    override var stealthCode: String
+        get() = prefs.getString("stealth_code", "70707") ?: "70707"
+        set(value) = prefs.edit { putString("stealth_code", value) }
+
     override val intentToken: String
         get() {
         val existing = prefs.getString(INTENT_TOKEN_KEY, null)

@@ -83,6 +83,8 @@ data class SettingsScreenActions(
     val onOpenAbout: () -> Unit,
     val onSetAlternativeIcon: (Boolean) -> Unit,
     val onOpenTools: () -> Unit,
+    // [ShizuSU 补丁] hosts 隐藏面板入口
+    val onOpenHosts: () -> Unit,
     val onOpenKpm: () -> Unit,
     val onOpenSusfsConfig: () -> Unit,
 )

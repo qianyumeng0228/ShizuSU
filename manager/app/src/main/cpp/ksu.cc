@@ -244,3 +244,21 @@ bool is_selinux_hide_enabled() {
 // Custom
 DEFINE_CACHED_GETTER(full_version, KSU_IOCTL_GET_FULL_VERSION, ksu_get_full_version_cmd, version_full, 255)
 DEFINE_CACHED_GETTER(hook_type, KSU_IOCTL_HOOK_TYPE, ksu_hook_type_cmd, hook_type, 32)
+
+// [ShizuSU 补丁] 照搬 7kimisu v2.29 ksu.cc L431-473，ShizuSU 内核未移植断代安全阀命令(27/28)，故省略该分支。
+bool stealth_get(bool *enabled) {
+    struct ksu_stealth_cmd cmd{};
+    if (ksuctl(KSU_IOCTL_STEALTH_GET, &cmd) == 0) {
+        if (enabled != nullptr) *enabled = cmd.enabled != 0;
+        return true;
+    }
+    return false;
+}
+
+bool stealth_set(bool enabled) {
+    struct ksu_stealth_cmd cmd{};
+    cmd.enabled = enabled ? 1 : 0;
+    if (ksuctl(KSU_IOCTL_STEALTH_SET, &cmd) != 0) return false;
+    g_version = {};   // 切状态后让 get_info 缓存失效，Natives.isManager 立即刷新
+    return true;
+}

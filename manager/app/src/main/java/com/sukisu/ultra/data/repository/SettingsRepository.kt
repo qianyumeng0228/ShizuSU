@@ -33,6 +33,8 @@ interface SettingsRepository {
     var showFullStatus: Boolean
     var autoJailbreak: Boolean
     var useSoftReboot: Boolean
+    /** 隐身模式的拨号密令数字(如 70707 对应 *#*#70707#*#*) */
+    var stealthCode: String
     val intentToken: String
 
     suspend fun getSuCompatStatus(): String
