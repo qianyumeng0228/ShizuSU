@@ -563,7 +563,7 @@
     <string name="stealth_code_title">隱身密令</string>
     <string name="stealth_code_too_short">密令至少 4 位數字</string>
     <string name="stealth_confirm_title">開啟隱身模式?</string>
-    <string name="stealth_confirm_content">開啟後本管理器會顯示為「未安裝」,超級使用者/模組等頁面全部隱藏。\n\n桌面圖示保持可見(不會被隱藏,點圖示即可進入)。\n\n關閉方式:撥號盤輸入 *#*#%1$s#*#*</string>
+    <string name="stealth_confirm_content">開啟後本管理器會顯示為「未安裝」,超級使用者/模組等頁面全部隱藏。\n\n桌面圖示保持可見(不會被隱藏,點圖示即可進入)。\n\n關閉方式:在偽裝(未安裝)介面的狀態卡上快速連續點擊 7 次,或撥號盤輸入 *#*#%1$s#*#*</string>
     <string name="stealth_confirm_button">開啟</string>
     <!-- [自研] 隱身偽裝介面的隱藏恢復入口(在「未安裝」卡上連續點按 7 次喚起)。
          對話框文案偽裝成普通系統提示,不得出現「隱身/ShizuSU/恢復管理器」等暴露詞。 -->

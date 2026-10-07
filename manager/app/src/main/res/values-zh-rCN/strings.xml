@@ -656,7 +656,7 @@
     <string name="stealth_code_title">隐身密令</string>
     <string name="stealth_code_too_short">密令至少 4 位数字</string>
     <string name="stealth_confirm_title">开启隐身模式?</string>
-    <string name="stealth_confirm_content">开启后本管理器会显示为「未安装」,超级用户/模块等页面全部隐藏。\n\n桌面图标保持可见(不会被隐藏,点图标即可进入)。\n\n关闭方式:拨号盘输入 *#*#%1$s#*#*</string>
+    <string name="stealth_confirm_content">开启后本管理器会显示为「未安装」,超级用户/模块等页面全部隐藏。\n\n桌面图标保持可见(不会被隐藏,点图标即可进入)。\n\n关闭方式:在伪装(未安装)界面的状态卡上快速连续点击 7 次,或拨号盘输入 *#*#%1$s#*#*</string>
     <string name="stealth_confirm_button">开启</string>
     <!-- [自研] 隐身伪装界面的隐藏恢复入口(在「未安装」卡上连续点按 7 次唤起)。
          对话框文案伪装成普通系统提示,不得出现「隐身/ShizuSU/恢复管理器」等暴露词。 -->
