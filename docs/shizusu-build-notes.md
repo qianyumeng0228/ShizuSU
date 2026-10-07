@@ -68,3 +68,13 @@ make olddefconfig
   小改动可用 GitHub REST API（`contents` PUT）推送，或在 git 命令上显式覆盖代理。
 - Phase 0 基线 CI：见 `.github/workflows/phase0-build-matrix.yml`，GKI LKM 矩阵（5.10 / 5.15 / 6.1）在
   `ghcr.io/ylarod/ddk-min` 容器内以 `CONFIG_KSU=m CC=clang make` 验证。
+
+## 5. ksud (Rust) Android 构建：必须用 -P 26
+
+cargo-ndk 默认 -P 21（API 21 sysroot）。API 21 的 bionic libc.so 不含 __system_property_read_callback 与 stdin/stdout/stderr 符号（bionic 宏化），链接必报 undefined symbol。**必须 cargo ndk -t arm64-v8a -P 26 build --release**（匹配 manager minSdk 26；API 26+ 的 libc.so 含全部所需符号）。
+
+## 6. manager App release 构建（Windows）：ninja 中文路径 + uapi 摊平
+
+- **ninja chdir 失败（中文路径乱码）**：manager/app/.cxx 在中文路径（如 I:\文档\...）下，gradle 调用 ninja 时路径字节被 ANSI 误读，报 chdir No such file or directory。**解法**：对仓库根建英文 junction：New-Item -ItemType Junction -Path C:\szsb -Target "I:\文档\sukisuultra"，然后在 C:\szsb\manager 下跑 gradle（产物经 junction 写回实际位置）。
+- **uapi/ksu.h not found**：manager/app/src/main/cpp/uapi 是 git 符号链接（120000），Windows 检出会被摊平为文本文件。**解法**：删除摊平文件后建 junction 指向仓库根 uapi/：Remove-Item cpp\uapi; New-Item -ItemType Junction -Path cpp\uapi -Target C:\szsb\uapi。构建完成需保持 git 干净时：cmd /c rmdir cpp\uapi; git checkout -- manager/app/src/main/cpp/uapi。
+- 版本码：manager 与 ksud 同一 HEAD 构建时 versionCode 一致（git count 算法相同）。
