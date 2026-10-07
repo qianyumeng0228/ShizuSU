@@ -9,6 +9,12 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+/** Gist 创建结果：id + 分片文件名列表（按顺序）。 */
+data class GistUploadResult(
+    val gistId: String,
+    val shards: List<String>,
+)
+
 /**
  * [ShizuSU] 社区模块提交 API（GitHub 原生无服务器方案）。
  *
@@ -16,8 +22,8 @@ import java.util.concurrent.TimeUnit
  *  1. 把模块 zip 整体 Base64 编码后按 < [SHARD_LIMIT] 字节切片；
  *  2. POST /gists 创建匿名/私有 Gist，files 名为 `<moduleId>.b64` / `<moduleId>.b64.p2` ……
  *  3. POST /repos/qianyumeng0228/ShizuSU-Modules/issues 发起 issue，
- *     body 为 JSON { gistId, moduleId, moduleName, author, versionName, versionCode, summaryZh, zygisk }，
- *     labels=["submission"]。管理员审批后从 Gist 取 zip 入库。
+ *     body 为 JSON { gistId, shards, moduleId, moduleName, author, versionName, versionCode, summaryZh, zygisk }，
+ *     labels=["submission"]。管理员审批后按 shards 顺序从 Gist 取分片拼接 base64 解码入库。
  *
  * 提交者令牌只需要 `gist` scope（无需仓库写权限）。令牌仅内存持有，不持久化。
  */
@@ -73,21 +79,23 @@ class ModuleSubmitApi(private val token: String) {
      * @param moduleId 模块 id，用于文件名前缀
      * @param zipBytes 模块 zip 原始字节
      * @param onShardUploaded 每片上传完成回调（已上传片数 / 总片数）
-     * @return gist id
+     * @return [GistUploadResult]（gist id + 分片文件名按顺序列表）
      */
     fun createGistWithShards(
         moduleId: String,
         zipBytes: ByteArray,
         onShardUploaded: (done: Int, total: Int) -> Unit = { _, _ -> }
-    ): String {
+    ): GistUploadResult {
         // 1) base64 整体编码（NO_WRAP 便于切片）
         val b64 = android.util.Base64.encodeToString(zipBytes, android.util.Base64.NO_WRAP)
         // 2) 切片
         val chunks = b64.chunked(SHARD_LIMIT)
         // 3) 构造 files 映射：第一片 <id>.b64，其后 <id>.b64.pN
         val filesObj = JSONObject()
+        val shardNames = ArrayList<String>(chunks.size)
         chunks.forEachIndexed { idx, chunk ->
             val name = if (idx == 0) "$moduleId.b64" else "$moduleId.b64.p${idx + 1}"
+            shardNames.add(name)
             filesObj.put(name, JSONObject().put("content", chunk))
             onShardUploaded(idx, chunks.size) // 已组装 idx 片（上传前）
         }
@@ -100,16 +108,18 @@ class ModuleSubmitApi(private val token: String) {
         val gistId = resp.optString("id", "")
         if (gistId.isEmpty()) throw IOException("Gist 创建失败：未返回 id")
         onShardUploaded(chunks.size, chunks.size)
-        return gistId
+        return GistUploadResult(gistId = gistId, shards = shardNames)
     }
 
     /**
      * 在 ShizuSU-Modules 仓库创建提交 issue。
      *
+     * @param shards Gist 内分片文件名列表（按顺序），审批端按此顺序拼接 base64
      * @return issue number
      */
     fun createSubmissionIssue(
         gistId: String,
+        shards: List<String>,
         moduleId: String,
         moduleName: String,
         author: String,
@@ -118,8 +128,11 @@ class ModuleSubmitApi(private val token: String) {
         summaryZh: String,
         zygisk: Boolean
     ): Int {
+        val shardsArr = JSONArray()
+        shards.forEach { shardsArr.put(it) }
         val meta = JSONObject()
             .put("gistId", gistId)
+            .put("shards", shardsArr)
             .put("moduleId", moduleId)
             .put("moduleName", moduleName)
             .put("author", author)

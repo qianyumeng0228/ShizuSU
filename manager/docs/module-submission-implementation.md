@@ -75,3 +75,24 @@ $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
 - 在 `qianyumeng0228/ShizuSU-Modules` 仓库创建 `submission` label（当前只有 GitHub 默认集）。
 - 管理员审批后从 Gist 取 zip、入库 `private/<id>.zip`，并按 `modules.config.json`（OBJECT）格式追加 `.modules` 条目——**不要**照 module-uploader 旧代码把 config 当 JSONArray 覆盖。
 - 可选：把 Gist 设置为在 issue 合并后自动删除（GitHub 不支持，需管理员手动或加 workflow）。
+
+## 七、真机联测修复记录
+
+### 7.1 shards 字段缺失（契约 bug）
+
+**现象**：审批端 `parsePayload` 要求 issue body JSON 含 `shards` 数组（分片文件名列表），否则报「提交信息缺少 gistId 或分片列表」。提交端第一版只写了 `gistId`，未写 `shards`。
+
+**修法**：
+- `ModuleSubmitApi.kt` 新增 `data class GistUploadResult(gistId, shards: List<String>)`；
+- `createGistWithShards()` 返回值由 `String`（gistId）改为 `GistUploadResult`，内部按切片顺序收集分片文件名（`<id>.b64` / `<id>.b64.p2` …）；
+- `createSubmissionIssue()` 新增形参 `shards: List<String>`，写入 `meta.put("shards", JSONArray().put(...))`，与 `gistId` 等字段并列；
+- `ModuleRepoUploadViewModel.submit()` 改为接收 `gistResult` 并把 `gistResult.shards` 传入。
+
+payload 现结构：`{ gistId, shards: [...], moduleId, moduleName, author, versionName, versionCode, summaryZh, zygisk }`。
+
+### 7.2 已安装模块选中后字段不自动填（体验 bug）
+
+**现象**：`onSelectInstalled` 用 `File("/data/adb/modules/<id>/module.prop").readText()` 直读，非 root 进程被 SELinux 拒绝，字段为空；而列表展示用 `Shell.cmd("cat ...")` 成功。
+
+**修法**：`ModuleRepoUploadViewModel.onSelectInstalled` 改用 `Shell.cmd("cat /data/adb/modules/$id/module.prop 2>/dev/null").exec().out.joinToString("\n").trim()` 读取 module.prop，与 `listInstalledModules()` 同一 root 通道。
+

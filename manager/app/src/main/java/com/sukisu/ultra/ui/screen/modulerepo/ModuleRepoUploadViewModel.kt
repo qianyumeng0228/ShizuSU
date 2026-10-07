@@ -3,6 +3,7 @@ package com.sukisu.ultra.ui.screen.modulerepo
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.topjohnwu.superuser.Shell
 import com.sukisu.ultra.ksuApp
 import com.sukisu.ultra.ui.util.module.ModulePackager
 import com.sukisu.ultra.ui.util.module.ModulePropInfo
@@ -62,9 +63,9 @@ class ModuleRepoUploadViewModel : ViewModel() {
                 runCatching {
                     val zip = ModulePackager.packInstalled(ksuApp, id)
                     preparedZip = zip
-                    // 从 module.prop 自动填表
-                    val propFile = File("/data/adb/modules/$id/module.prop")
-                    val propText = runCatching { propFile.readText() }.getOrDefault("")
+                    // 用 root shell 读 module.prop（非 root 进程直读 /data/adb/modules 被 SELinux 拒绝）
+                    val propText = Shell.cmd("cat /data/adb/modules/$id/module.prop 2>/dev/null")
+                        .exec().out.joinToString("\n").trim()
                     val prop = ModulePropInfo.parse(propText)
                     Triple(zip, prop, id)
                 }
@@ -166,13 +167,14 @@ class ModuleRepoUploadViewModel : ViewModel() {
                     _uiState.update { it.copy(status = ModuleUploadStatus.UploadingGist(0, 1)) }
                     // 2) 读 zip 字节 + base64 分片上传 gist
                     val bytes = zip.readBytes()
-                    val gistId = api.createGistWithShards(state.moduleId, bytes) { done, total ->
+                    val gistResult = api.createGistWithShards(state.moduleId, bytes) { done, total ->
                         _uiState.update { s -> s.copy(status = ModuleUploadStatus.UploadingGist(done, total)) }
                     }
-                    // 3) 提 issue
+                    // 3) 提 issue（带 shards 列表，审批端按顺序拼接）
                     _uiState.update { it.copy(status = ModuleUploadStatus.SubmittingIssue) }
                     val issueNo = api.createSubmissionIssue(
-                        gistId = gistId,
+                        gistId = gistResult.gistId,
+                        shards = gistResult.shards,
                         moduleId = state.moduleId,
                         moduleName = state.moduleName,
                         author = state.author,
