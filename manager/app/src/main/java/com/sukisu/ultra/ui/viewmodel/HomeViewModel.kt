@@ -86,7 +86,7 @@ class HomeViewModel(
             currentManagerVersionCode = managerVersion.versionCode,
             systemInfo = SystemInfo(
                 kernelVersion = Os.uname().release,
-                managerVersion = "${managerVersion.versionName} (${managerVersion.versionCode}-${managerUAPIVersion})",
+                managerVersion = "${managerVersion.versionName} (${ksuVersion ?: managerVersion.versionCode}-${managerUAPIVersion})",
                 deviceModel = resolveDeviceName(),
                 kernelFullVersion = kernelFullVersion,
                 fingerprint = Build.FINGERPRINT,
