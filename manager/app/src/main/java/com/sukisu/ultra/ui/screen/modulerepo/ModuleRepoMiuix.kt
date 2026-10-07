@@ -123,6 +123,7 @@ import top.yukonga.miuix.kmp.icon.extended.HorizontalSplit
 import top.yukonga.miuix.kmp.icon.extended.Link
 import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.icon.extended.TopDownloads
+import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
@@ -190,6 +191,15 @@ fun ModuleRepoScreenMiuix(
                                         }
                                     }
                                 })
+                            IconButton(
+                                onClick = actions.onOpenUpload,
+                            ) {
+                                Icon(
+                                    imageVector = MiuixIcons.UploadCloud,
+                                    tint = colorScheme.onSurface,
+                                    contentDescription = stringResource(R.string.module_repo_upload),
+                                )
+                            }
                             IconButton(
                                 onClick = { showSortPopup.value = true },
                                 holdDownState = showSortPopup.value

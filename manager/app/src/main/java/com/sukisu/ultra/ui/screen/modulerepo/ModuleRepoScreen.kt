@@ -57,6 +57,7 @@ fun ModuleRepoScreen() {
             )
             navigator.push(Route.ModuleRepoDetail(args))
         },
+        onOpenUpload = { navigator.push(Route.ModuleRepoUpload) },
     )
 
     when (LocalUiMode.current) {

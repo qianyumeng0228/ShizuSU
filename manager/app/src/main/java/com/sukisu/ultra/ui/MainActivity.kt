@@ -83,6 +83,7 @@ import com.sukisu.ultra.ui.screen.kpm.KpmScreen
 import com.sukisu.ultra.ui.screen.module.ModulePager
 import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoDetailScreen
 import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoScreen
+import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoUploadScreen
 import com.sukisu.ultra.ui.screen.settings.SettingPager
 import com.sukisu.ultra.ui.screen.settings.hosts.HostsHideScreen
 import com.sukisu.ultra.ui.screen.settings.tools.ToolsScreen
@@ -233,6 +234,7 @@ class MainActivity : ComponentActivity() {
                                 entry<Route.AppProfile>(swipeDismiss = swipeDismiss) { key -> AppProfileScreen(key.uid) }
                                 entry<Route.ModuleRepo>(swipeDismiss = swipeDismiss) { ModuleRepoScreen() }
                                 entry<Route.ModuleRepoDetail>(swipeDismiss = swipeDismiss) { key -> ModuleRepoDetailScreen(key.module) }
+                                entry<Route.ModuleRepoUpload>(swipeDismiss = swipeDismiss) { ModuleRepoUploadScreen() }
                                 entry<Route.Install>(swipeDismiss = swipeDismiss) { key -> InstallScreen(preselectedKernelUri = key.preselectedKernelUri) }
                                 entry<Route.Flash>(swipeDismiss = swipeDismiss) { key -> FlashScreen(key.flashIt) }
                                 entry<Route.ExecuteModuleAction>(swipeDismiss = swipeDismiss) { key ->

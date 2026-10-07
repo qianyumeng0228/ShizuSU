@@ -78,6 +78,11 @@ sealed interface Route : NavKey, Parcelable {
     @Serializable
     data object ModuleRepo : Route
 
+    // [ShizuSU] 模块社区提交入口
+    @Parcelize
+    @Serializable
+    data object ModuleRepoUpload : Route
+
     @Parcelize
     @Serializable
     data class Flash(@Serializable(with = FlashItSerializer::class) val flashIt: FlashIt) : Route

@@ -39,6 +39,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.automirrored.outlined.ChromeReaderMode
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Download
@@ -142,6 +143,13 @@ fun ModuleRepoScreenMaterial(
                 },
                 actions = {
                     var showSortMenu by remember { mutableStateOf(false) }
+
+                    IconButton(onClick = actions.onOpenUpload) {
+                        Icon(
+                            imageVector = Icons.Filled.Upload,
+                            contentDescription = stringResource(R.string.module_repo_upload)
+                        )
+                    }
 
                     IconButton(
                         onClick = { showSortMenu = true }

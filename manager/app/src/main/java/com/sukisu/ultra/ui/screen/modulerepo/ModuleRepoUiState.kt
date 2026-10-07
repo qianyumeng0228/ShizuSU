@@ -30,6 +30,7 @@ data class ModuleRepoActions(
     val onSearchStatusChange: (SearchStatus) -> Unit,
     val onSetSortOrder: (RepoSort) -> Unit,
     val onOpenRepoDetail: (RepoModule) -> Unit,
+    val onOpenUpload: () -> Unit,
 )
 
 @Immutable
