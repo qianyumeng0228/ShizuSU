@@ -256,7 +256,11 @@ static __always_inline bool check_v2_signature(char *path)
 			if (!read_exact(fp, &magic, sizeof(magic), &pos, file_size))
 				goto clean;
 			if (magic == 0x06054b50) {
-				eocd_offset = pos + sizeof(magic);
+				/* [修复] eocd_offset 须指向 EOCD 记录起始（magic 位置）：
+				 * read_exact 后 pos 已前进 sizeof(magic)，故用 pos - sizeof(magic)，
+				 * 与上游基线 7fbbb1f1 apk_sign.c 一致。此前误写 + 使偏移 +8，
+				 * 后续 cd_size 读取错位越界，任何 v2 签名 APK 均被拒（管理器无法加冕）。 */
+				eocd_offset = pos - sizeof(magic);
 				break;
 			}
 		}
