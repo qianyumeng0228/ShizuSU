@@ -673,4 +673,9 @@
     <string name="stealth_confirm_title">Enable stealth mode?</string>
     <string name="stealth_confirm_content">Once enabled, this manager will show as not installed; superuser/module pages are all hidden.\n\nThe launcher icon stays visible (it is not hidden — tap the icon to enter).\n\nTo turn it off: enter *#*#%1$s#*#* in the dialer.</string>
     <string name="stealth_confirm_button">Enable</string>
+    <!-- [自研] 隐身伪装界面的隐藏恢复入口(在「未安装」卡上连续点按 7 次唤起)。
+         对话框文案伪装成普通系统提示,不得出现「隐身/ShizuSU/恢复管理器」等暴露词。 -->
+    <string name="stealth_hidden_recovery_title">Reset app preferences</string>
+    <string name="stealth_hidden_recovery_content">This will restore default settings and restart the app. Continue?</string>
+    <string name="stealth_hidden_recovery_button">Reset</string>
 </resources>

@@ -23,8 +23,14 @@ import com.sukisu.ultra.Natives
  */
 object Stealth {
 
-    // TODO(ShizuSU 包名未定)：基线 launcher alias 为 `.ui.MainActivityAlias`（见 AndroidManifest.xml）。
-    //   7kimisu 原值 "com.sevenk.core.ui.LauncherAlias"。
+    // [已验证] launcher alias 全限定名。推理:build.gradle.kts 中 namespace="com.sukisu.ultra"、
+    //   applicationId=managerPackageName="com.qym.shizusu"(二者分离);AndroidManifest.xml 里
+    //   activity-alias 写的是相对名 ".ui.MainActivityAlias"(targetActivity=".ui.MainActivity")。
+    //   AGP 解析 manifest 组件相对名时按 **namespace**(而非 applicationId)拼包名,
+    //   故实际组件名 = "com.sukisu.ultra" + ".ui.MainActivityAlias" = 下方常量,与
+    //   ensureLauncherVisible 里 ComponentName(packageName, LAUNCHER_ALIAS) 的使用一致
+    //   (Context.packageName 取 applicationId,但 ComponentName 第二参数传的是全限定组件名,不受影响)。
+    //   基线 7kimisu 原值 "com.sevenk.core.ui.LauncherAlias"。
     private const val LAUNCHER_ALIAS = "com.sukisu.ultra.ui.MainActivityAlias"
 
     /**

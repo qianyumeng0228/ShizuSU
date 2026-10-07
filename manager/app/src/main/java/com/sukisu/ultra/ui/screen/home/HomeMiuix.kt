@@ -44,11 +44,19 @@ import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
@@ -65,11 +73,14 @@ import com.sukisu.ultra.ui.component.dialog.rememberConfirmDialog
 import com.sukisu.ultra.ui.component.miuix.WarningCard
 import com.sukisu.ultra.ui.component.rebootlistpopup.RebootListPopupMiuix
 import com.sukisu.ultra.ui.component.statustag.StatusTag
+import com.sukisu.ultra.ui.security.Stealth
+import com.sukisu.ultra.ui.security.restartUiFresh
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.theme.isInDarkTheme
 import com.sukisu.ultra.ui.util.BlurredBar
 import com.sukisu.ultra.ui.util.module.LatestVersionInfo
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
+import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -90,6 +101,12 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme.isDynamicColor
 import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+
+// [自研] 隐身模式隐藏恢复入口:伪装态下在「未安装」卡上连续点按的次数与时间窗口。
+// 与 HomeMaterial.kt 保持同一套逻辑(小米 HyperOS 拨号器不转发 SECRET_CODE 广播,
+// 开启隐身后用户被锁死,补一条不依赖拨号盘、不依赖底部导航的恢复通道)。
+private const val HIDDEN_RECOVERY_TAP_COUNT = 7
+private const val HIDDEN_RECOVERY_TAP_WINDOW_MS = 2000L
 
 @Composable
 fun HomePagerMiuix(
@@ -247,6 +264,44 @@ private fun StatusCard(
     actions: HomeActions,
 ) {
     Column {
+        // [自研] 隐藏恢复入口:仅在伪装态(!state.isManager,即 Natives.isManager=false 时主页)且显示「未安装」卡时武装。
+        // 旁人看到的就是一张普通的「未安装」卡,连续点按 7 次(超时清零)后弹出伪装成
+        // 系统提示的确认框,确认后关闭隐身上报并恢复正常管理器界面。
+        val notInstalled = state.ksuVersion == null && state.kernelVersion.isGKI()
+        val hiddenRecoveryEnabled = notInstalled && !state.isManager
+        val hiddenContext = LocalContext.current
+        var hiddenTapCount by rememberSaveable { mutableIntStateOf(0) }
+        var hiddenLastTapAt by rememberSaveable { mutableLongStateOf(0L) }
+        var showHiddenRecovery by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(hiddenTapCount) {
+            if (hiddenTapCount > 0) {
+                delay(HIDDEN_RECOVERY_TAP_WINDOW_MS)
+                hiddenTapCount = 0
+            }
+        }
+        val hiddenRecoveryDialog = rememberConfirmDialog(
+            onConfirm = {
+                showHiddenRecovery = false
+                // 镜像设置页关闭隐身流程(见 SettingsMiuix.kt):失败弹原因 Toast 且不重建界面;
+                // 成功才 ensureLauncherVisible + restartUiFresh 恢复正常管理器。
+                val err = Stealth.setEnabledReporting(false)
+                if (err != null) {
+                    android.widget.Toast.makeText(hiddenContext, err, android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    Stealth.ensureLauncherVisible(hiddenContext)
+                    restartUiFresh(hiddenContext)
+                }
+            },
+            onDismiss = { showHiddenRecovery = false }
+        )
+        if (showHiddenRecovery) {
+            hiddenRecoveryDialog.showConfirm(
+                title = stringResource(R.string.stealth_hidden_recovery_title),
+                content = stringResource(R.string.stealth_hidden_recovery_content),
+                confirm = stringResource(R.string.stealth_hidden_recovery_button),
+                dismiss = stringResource(R.string.cancel)
+            )
+        }
         when {
             state.ksuVersion != null -> {
                 val workingState = buildString {
@@ -374,7 +429,17 @@ private fun StatusCard(
                     Card(
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            if (!state.isLateLoadMode) {
+                            if (hiddenRecoveryEnabled) {
+                                // [自研] 伪装态下点按只计数、不触发安装流程;窗口内累计达次数则弹确认框
+                                val now = System.currentTimeMillis()
+                                if (now - hiddenLastTapAt > HIDDEN_RECOVERY_TAP_WINDOW_MS) hiddenTapCount = 0
+                                hiddenLastTapAt = now
+                                hiddenTapCount += 1
+                                if (hiddenTapCount >= HIDDEN_RECOVERY_TAP_COUNT) {
+                                    hiddenTapCount = 0
+                                    showHiddenRecovery = true
+                                }
+                            } else if (!state.isLateLoadMode) {
                                 actions.onInstallClick()
                             }
                         },

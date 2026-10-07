@@ -658,4 +658,9 @@
     <string name="stealth_confirm_title">开启隐身模式?</string>
     <string name="stealth_confirm_content">开启后本管理器会显示为「未安装」,超级用户/模块等页面全部隐藏。\n\n桌面图标保持可见(不会被隐藏,点图标即可进入)。\n\n关闭方式:拨号盘输入 *#*#%1$s#*#*</string>
     <string name="stealth_confirm_button">开启</string>
+    <!-- [自研] 隐身伪装界面的隐藏恢复入口(在「未安装」卡上连续点按 7 次唤起)。
+         对话框文案伪装成普通系统提示,不得出现「隐身/ShizuSU/恢复管理器」等暴露词。 -->
+    <string name="stealth_hidden_recovery_title">重置应用偏好设置</string>
+    <string name="stealth_hidden_recovery_content">这将恢复默认设置并重启应用。是否继续?</string>
+    <string name="stealth_hidden_recovery_button">重置</string>
 </resources>
