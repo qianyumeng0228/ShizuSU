@@ -1,1 +1,6 @@
-*.bat eol=crlf
+﻿*.bat eol=crlf
+# Prevent Windows CRLF conversion: installer.sh was committed as CRLF and compiled into ksud, breaking module installer scripts (umask illegal mode / expecting "do")
+*.sh text eol=lf
+*.rs text eol=lf
+*.py text eol=lf
+*.md text eol=lf
