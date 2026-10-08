@@ -1,0 +1,17 @@
+# built files
+.gradle/
+build/
+app/build/
+*.log
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+# signing secrets (never commit)
+*.jks
+*.keystore
+keystore.properties
+*.p12
+# recovery artifacts
+.recovery/
