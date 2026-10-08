@@ -20,9 +20,11 @@ jobs:
           ok=0
           for u in \
             "https://modules.lsposed.org/modules.json" \
-            "https://modules-blogcdn.lsposed.org/modules.json"; do
+            "https://modules-blogcdn.lsposed.org/modules.json" \
+            "https://modules-cloudflare.lsposed.org/modules.json"; do
             echo "== trying $u"
-            if curl -fsSL --max-time 60 -A "ShizuSU-mirror/1.0" "$u" -o docs/xposed/modules.json; then
+            # -k: blogcdn cert expired upstream; --compressed: EdgeOne blocks uncompressed curl; -A: UA
+            if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o docs/xposed/modules.json; then
               ok=1
               break
             fi
