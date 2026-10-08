@@ -1,5 +1,11 @@
 package com.sukisu.ultra.ui.screen.modulerepo
 
+import android.graphics.Color
+import android.text.InputType
+import android.text.TextWatcher
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,10 +36,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.sukisu.ultra.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +66,8 @@ fun ModuleRepoUploadScreenMaterial(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .imePadding(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -193,10 +204,11 @@ fun ModuleRepoUploadScreenMaterial(
             item { HorizontalDivider() }
 
             item {
-                OutlinedTextField(
+                // [ShizuSU] 方案 C：令牌框换原生 EditText，importantForAutofill=NO 从根源禁掉 autofill 气泡。
+                TokenEditTextMaterial(
                     value = state.token,
                     onValueChange = actions.onTokenChange,
-                    label = { Text(stringResource(R.string.module_repo_upload_token_hint)) },
+                    hint = stringResource(R.string.module_repo_upload_token_hint),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -238,4 +250,52 @@ fun ModuleRepoUploadScreenMaterial(
             }
         }
     }
+}
+
+@Composable
+private fun TokenEditTextMaterial(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val density = context.resources.displayMetrics.density
+    val bg = remember {
+        android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 8f * density
+            setColor(Color.parseColor("#1A000000"))
+            setStroke((1 * density).toInt(), Color.parseColor("#79747E"))
+        }
+    }
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            EditText(ctx).apply {
+                this.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                this.background = bg
+                setTextColor(Color.parseColor("#FF1C1B1F"))
+                setHintTextColor(Color.parseColor("#49454F"))
+                this.hint = hint
+                this.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (56 * density).toInt(),
+                )
+                val pad = (16 * density).toInt()
+                setPadding(pad, 0, pad, 0)
+                isSingleLine = true
+                addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        if (s?.toString() != value) onValueChange(s?.toString().orEmpty())
+                    }
+                })
+            }
+        },
+        update = { et ->
+            if (et.text.toString() != value) et.setText(value)
+        },
+    )
 }

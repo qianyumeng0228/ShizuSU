@@ -518,7 +518,7 @@ private fun SupportLinks(
                     tint = colorScheme.onBackground,
                 )
             },
-            onClick = { onOpenUrl("https://patreon.com/weishu") },
+            onClick = { onOpenUrl("https://zanzhuwang.cc.cd") },
         )
         ArrowPreference(
             title = stringResource(R.string.home_learn_kernelsu),

@@ -1,5 +1,11 @@
 package com.sukisu.ultra.ui.screen.modulerepo
 
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.GradientDrawable
+import android.text.InputType
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,22 +16,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.util.BlurredBar
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
-import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -43,6 +52,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme
+
 @Composable
 fun ModuleRepoUploadScreenMiuix(
     state: ModuleRepoUploadUiState,
@@ -80,6 +90,7 @@ fun ModuleRepoUploadScreenMiuix(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .scrollEndHaptic()
                 .overScrollVertical(),
             contentPadding = PaddingValues(
@@ -218,14 +229,13 @@ fun ModuleRepoUploadScreenMiuix(
 
             item { SmallTitle(text = stringResource(R.string.module_repo_upload_token)) }
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    TextField(
-                        value = state.token,
-                        onValueChange = actions.onTokenChange,
-                        label = stringResource(R.string.module_repo_upload_token_hint),
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    )
-                }
+                // [ShizuSU] 方案 C：令牌框换原生 EditText，importantForAutofill=NO 从根源禁掉 autofill 气泡。
+                TokenEditTextMiuix(
+                    value = state.token,
+                    onValueChange = actions.onTokenChange,
+                    hint = stringResource(R.string.module_repo_upload_token_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             item {
@@ -258,6 +268,55 @@ fun ModuleRepoUploadScreenMiuix(
             }
         }
     }
+}
+
+@Composable
+private fun TokenEditTextMiuix(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val textColor = android.graphics.Color.parseColor("#FF1C1B1F")
+    val hintColor = android.graphics.Color.parseColor("#49454F")
+    val bg = remember {
+        GradientDrawable().apply {
+            cornerRadius = 12f * context.resources.displayMetrics.density
+            setColor(android.graphics.Color.parseColor("#FFF7F6F0"))
+            setStroke(1, android.graphics.Color.parseColor("#CAC4D0"))
+        }
+    }
+    AndroidView(
+        modifier = modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        factory = { ctx ->
+            EditText(ctx).apply {
+                this.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                this.background = bg
+                this.setTextColor(textColor)
+                this.setHintTextColor(hintColor)
+                this.hint = hint
+                this.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                this.layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    (56 * context.resources.displayMetrics.density).toInt(),
+                )
+                val pad = (16 * context.resources.displayMetrics.density).toInt()
+                setPadding(pad, 0, pad, 0)
+                isSingleLine = true
+                addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        if (s?.toString() != value) onValueChange(s?.toString().orEmpty())
+                    }
+                })
+            }
+        },
+        update = { et ->
+            if (et.text.toString() != value) et.setText(value)
+        },
+    )
 }
 
 @Composable

@@ -52,14 +52,35 @@ data class FlashResult(val code: Int, val err: String, val showReboot: Boolean) 
 }
 
 object KsuCli {
-    val SHELL: Shell = createRootShell()
-    val GLOBAL_MNT_SHELL: Shell = createRootShell(true)
+    // [ShizuSU] 可重建单例：root 守护进程死亡后 libsu 不会自动重建 Shell 对象，
+    // 改为 @Volatile var + ensureRootShell() 在每次取用时检测 isDead 并重建。
+    @Volatile
+    var SHELL: Shell = createRootShell()
+        private set
+
+    @Volatile
+    var GLOBAL_MNT_SHELL: Shell = createRootShell(true)
+        private set
+
+    /** 取 root shell；若探测发现已死则重建一次后返回。 */
+    fun ensureRootShell(globalMnt: Boolean = false): Shell {
+        var current = if (globalMnt) GLOBAL_MNT_SHELL else SHELL
+        // libsu 6.x 无公开 isDead；用 id -u 探针探测，失败/抛错则重建一次。
+        val alive = runCatching {
+            val out = current.newJob().add("true").to(ArrayList(), null).exec()
+            out.isSuccess
+        }.getOrDefault(false)
+        if (!alive) {
+            Log.w(TAG, "root shell probe failed, recreating (globalMnt=$globalMnt)")
+            current = createRootShell(globalMnt)
+            if (globalMnt) GLOBAL_MNT_SHELL = current else SHELL = current
+        }
+        return current
+    }
 }
 
 fun getRootShell(globalMnt: Boolean = false): Shell {
-    return if (globalMnt) KsuCli.GLOBAL_MNT_SHELL else {
-        KsuCli.SHELL
-    }
+    return KsuCli.ensureRootShell(globalMnt)
 }
 
 inline fun <T> withNewRootShell(
@@ -139,10 +160,23 @@ fun install() {
 
 fun listModules(): String {
     val shell = getRootShell()
+    // [ShizuSU] 先校验 root：避免 sh 兜底 + ksud 非零退出时把「root 不可用」伪装成空列表。
+    val uidOut = shell.newJob()
+        .add("id -u").to(ArrayList(), null).exec().out
+    val uid = uidOut.firstOrNull()?.trim().orEmpty()
+    if (uid != "0") {
+        throw IllegalStateException("root 不可用（id -u=$uid），请检查 root 授权")
+    }
 
-    val out = shell.newJob()
-        .add("${getKsuDaemonPath()} module list").to(ArrayList(), null).exec().out
-    return out.joinToString("\n").ifBlank { "[]" }
+    val result = shell.newJob()
+        .add("${getKsuDaemonPath()} module list").to(ArrayList(), null).exec()
+    if (result.code != 0) {
+        throw IllegalStateException("ksud module list 退出码 ${result.code}: ${result.err.joinToString("\n")}")
+    }
+    // 正常空模块时 ksud 返回 "[]"；空输出视为异常（静默吞错）。
+    val out = result.out.joinToString("\n")
+    if (out.isBlank()) throw IllegalStateException("ksud module list 无输出")
+    return out
 }
 
 fun getModuleCount(): Int {

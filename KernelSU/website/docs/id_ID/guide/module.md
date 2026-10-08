@@ -1,0 +1,440 @@
+# Panduan module
+
+ShizuSU menyediakan mekanisme modul yang mencapai efek memodifikasi direktori sistem dengan tetap menjaga integritas partisi sistem. Mekanisme ini umumnya dikenal sebagai "tanpa sistem".
+
+Mekanisme modul ShizuSU hampir sama dengan Magisk. Jika Anda terbiasa dengan pengembangan modul Magisk, mengembangkan modul ShizuSU sangat mirip. Anda dapat melewati pengenalan modul di bawah ini dan hanya perlu membaca [difference-with-magisk](difference-with-magisk.md).
+
+::: info SISTEM MODUL BERBASIS MAGIC MOUNT
+Sistem modul ShizuSU didasarkan pada **Magic Mount** (dari SukiSU-Ultra), tidak perlu menginstal metamodule untuk me-mount direktori `system`. Modul yang memodifikasi file `/system` langsung berfungsi. Lihat [Sistem Modul: Magic Mount](metamodule.md).
+:::
+
+## Modul kernel KPM {#kpm}
+
+KernelPatch Module (KPM) memungkinkan pemuatan modul langsung di tingkat kernel, ideal untuk modifikasi dan penguatan kernel tingkat lanjut. ShizuSU memiliki dukungan KPM penuh (di-port dari Apatch). Untuk menggunakan KPM, aktifkan `CONFIG_KPM=y` saat membangun kernel.
+
+## WebUI
+
+Modul ShizuSU mendukung tampilan antarmuka dan interaksi dengan pengguna. Lihat [WebUI documentation](module-webui.md) untuk detailnya.
+
+## Konfigurasi Modul
+
+ShizuSU menyediakan sistem konfigurasi bawaan yang memungkinkan modul menyimpan pengaturan key-value persisten atau sementara. Untuk detail lebih lanjut, lihat [dokumentasi Konfigurasi Modul](module-config.md).
+
+## Busybox
+
+ShizuSU dikirimkan dengan fitur biner BusyBox yang lengkap (termasuk dukungan penuh SELinux). Eksekusi terletak di `/data/adb/ksu/bin/busybox`. BusyBox ShizuSU mendukung "Mode Shell Standalone Shell" yang dapat dialihkan waktu proses. Apa yang dimaksud dengan mode mandiri ini adalah bahwa ketika dijalankan di shell `ash` dari BusyBox, setiap perintah akan langsung menggunakan applet di dalam BusyBox, terlepas dari apa yang ditetapkan sebagai `PATH`. Misalnya, perintah seperti `ls`, `rm`, `chmod` **TIDAK** akan menggunakan apa yang ada di `PATH` (dalam kasus Android secara default akan menjadi `/system/bin/ls`, ` /system/bin/rm`, dan `/system/bin/chmod` masing-masing), tetapi akan langsung memanggil applet BusyBox internal. Ini memastikan bahwa skrip selalu berjalan di lingkungan yang dapat diprediksi dan selalu memiliki rangkaian perintah lengkap, apa pun versi Android yang menjalankannya. Untuk memaksa perintah _not_ menggunakan BusyBox, Anda harus memanggil yang dapat dieksekusi dengan path lengkap.
+
+Setiap skrip shell tunggal yang berjalan dalam konteks ShizuSU akan dieksekusi di shell `ash` BusyBox dengan mode mandiri diaktifkan. Untuk apa yang relevan dengan pengembang pihak ke-3, ini termasuk semua skrip boot dan skrip instalasi modul.
+
+Bagi yang ingin menggunakan fitur “Standalone Mode” ini di luar ShizuSU, ada 2 cara untuk mengaktifkannya:
+
+1. Tetapkan variabel lingkungan `ASH_STANDALONE` ke `1`<br>Contoh: `ASH_STANDALONE=1 /data/adb/ksu/bin/busybox sh <script>`
+2. Beralih dengan opsi baris perintah:<br>`/data/adb/ksu/bin/busybox sh -o mandiri <script>`
+
+Untuk memastikan semua shell `sh` selanjutnya dijalankan juga dalam mode mandiri, opsi 1 adalah metode yang lebih disukai (dan inilah yang digunakan secara internal oleh ShizuSU dan manajer ShizuSU) karena variabel lingkungan diwariskan ke proses anak.
+
+::: perbedaan tip dengan Magisk
+
+BusyBox ShizuSU sekarang menggunakan file biner yang dikompilasi langsung dari proyek Magisk. **Berkat Magisk!** Oleh karena itu, Anda tidak perlu khawatir tentang masalah kompatibilitas antara skrip BusyBox di Magisk dan ShizuSU karena keduanya persis sama!
+:::
+
+## ShizuSU module
+
+Modul ShizuSU adalah folder yang ditempatkan di `/data/adb/modules` dengan struktur di bawah ini:
+
+```txt
+/data/adb/modules
+├── .
+├── .
+|
+├── $MODID                  <--- The folder is named with the ID of the module
+│   │
+│   │      *** Module Identity ***
+│   │
+│   ├── module.prop         <--- This file stores the metadata of the module
+│   │
+│   │      *** Main Contents ***
+│   │
+│   ├── system              <--- This folder will be mounted if skip_mount does not exist
+│   │   ├── ...
+│   │   ├── ...
+│   │   └── ...
+│   │
+│   │      *** Status Flags ***
+│   │
+│   ├── skip_mount          <--- If exists, ShizuSU will NOT mount your system folder
+│   ├── disable             <--- If exists, the module will be disabled
+│   ├── remove              <--- If exists, the module will be removed next reboot
+│   │
+│   │      *** Optional Files ***
+│   │
+│   ├── post-fs-data.sh     <--- This script will be executed in post-fs-data
+│   ├── service.sh          <--- This script will be executed in late_start service
+|   ├── uninstall.sh        <--- This script will be executed when ShizuSU removes your module
+│   ├── system.prop         <--- Properties in this file will be loaded as system properties by resetprop
+│   ├── sepolicy.rule       <--- Additional custom sepolicy rules
+│   ├── initrc/             <--- File .rc di direktori ini akan disuntikkan ke init.rc saat boot
+│   │   ├── myservice.rc
+│   │   └── ...
+│   │
+│   │      *** Auto Generated, DO NOT MANUALLY CREATE OR MODIFY ***
+│   │
+│   ├── vendor              <--- A symlink to $MODID/system/vendor
+│   ├── product             <--- A symlink to $MODID/system/product
+│   ├── system_ext          <--- A symlink to $MODID/system/system_ext
+│   │
+│   │      *** Any additional files / folders are allowed ***
+│   │
+│   ├── ...
+│   └── ...
+|
+├── another_module
+│   ├── .
+│   └── .
+├── .
+├── .
+```
+
+::: perbedaan tip dengan Magisk
+ShizuSU tidak memiliki dukungan bawaan untuk Zygisk, jadi tidak ada konten terkait Zygisk dalam modul. Namun, Anda dapat menggunakan [ZygiskNext](https://github.com/Dr-TSNG/ZygiskNext) untuk mendukung modul Zygisk. Dalam hal ini, konten modul Zygisk identik dengan yang didukung oleh Magisk.
+:::
+
+### module.prop
+
+module.prop adalah file konfigurasi untuk sebuah modul. Di ShizuSU, jika modul tidak berisi file ini, maka tidak akan dikenali sebagai modul. Format file ini adalah sebagai berikut:
+
+```txt
+id=<string>
+name=<string>
+version=<string>
+versioncode=<int>
+author=<string>
+description=<string>
+updateJson=<url> (opsional)
+actionIcon=<path> (opsional)
+webuiIcon=<path> (opsional)
+```
+
+- `id` harus cocok dengan ekspresi reguler ini: `^[a-zA-Z][a-zA-Z0-9._-]+$`<br>
+   contoh: ✓ `a_module`, ✓ `a.module`, ✓ `module-101`, ✗ `a module`, ✗ `1_module`, ✗ `-a-module`<br>
+   Ini adalah **pengidentifikasi unik** modul Anda. Anda tidak boleh mengubahnya setelah dipublikasikan.
+- `versionCode` harus berupa **integer**. Ini digunakan untuk membandingkan versi.
+- Lainnya yang tidak disebutkan di atas dapat berupa string **satu baris**.
+- Pastikan untuk menggunakan tipe jeda baris `UNIX (LF)` dan bukan `Windows (CR+LF)` atau `Macintosh (CR)`.
+- `actionIcon` dan `webuiIcon` adalah path ikon opsional yang digunakan sebagai
+  ikon default untuk pintasan aksi modul dan pintasan WebUI modul di aplikasi
+  pengelola. Path ini harus relatif terhadap direktori root modul. Contohnya,
+  `actionIcon=icon/icon.png` akan dipetakan ke `<MODDIR>/icon/icon.png`.
+
+::: tip DESKRIPSI DINAMIS
+Field `description` dapat diganti secara dinamis saat runtime menggunakan sistem konfigurasi modul. Lihat [Mengganti Deskripsi Modul](module-config.md#overriding-module-description) untuk detailnya.
+:::
+
+### Shell skrip
+
+Harap baca bagian [Boot Scripts](#boot-scripts) untuk memahami perbedaan antara `post-fs-data.sh` dan `service.sh`. Untuk sebagian besar pengembang modul, `service.sh` sudah cukup baik jika Anda hanya perlu menjalankan skrip boot.
+
+Di semua skrip modul Anda, harap gunakan `MODDIR=${0%/*}` untuk mendapatkan jalur direktori dasar modul Anda; lakukan **TIDAK** hardcode jalur modul Anda dalam skrip.
+
+::: perbedaan tip dengan Magisk
+Anda dapat menggunakan variabel lingkungan KSU untuk menentukan apakah skrip berjalan di ShizuSU atau Magisk. Jika berjalan di ShizuSU, nilai ini akan disetel ke true.
+:::
+
+### `system` directory
+
+Isi direktori ini akan dihamparkan di atas partisi sistem /sistem setelah sistem di-boot. Ini berarti bahwa:
+
+::: info SISTEM MODUL BERBASIS MAGIC MOUNT
+Sistem modul ShizuSU didasarkan pada **Magic Mount** (dari SukiSU-Ultra); direktori `system` di-mount secara langsung tanpa metamodule. Lihat [Sistem Modul: Magic Mount](metamodule.md) untuk informasi lebih lanjut.
+:::
+
+1. File dengan nama yang sama dengan yang ada di direktori terkait di sistem akan ditimpa oleh file di direktori ini.
+2. Folder dengan nama yang sama dengan yang ada di direktori terkait di sistem akan digabungkan dengan folder di direktori ini.
+
+Jika Anda ingin menghapus file atau folder di direktori sistem asli, Anda dapat mendeklarasikan variabel `REMOVE` yang berisi daftar direktori di `customize.sh`. ShizuSU akan menyembunyikan file-file ini melalui Magic Mount (partisi /system sebenarnya tidak diubah).
+
+```sh
+REMOVE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+```
+
+`/system/app/YouTube` dan `/system/app/Bloatware` akan disembunyikan setelah modul berlaku.
+
+Jika Anda ingin mengganti direktori di sistem, Anda dapat mendeklarasikan variabel `REPLACE` di `customize.sh`. ShizuSU akan bind mount direktori kosong ke jalur target, mengganti seluruh direktori (tanpa mengubah partisi /system).
+
+```sh
+REPLACE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+```
+
+`/system/app/YouTube` dan `/system/app/Bloatware` akan diganti dengan direktori kosong setelah modul berlaku.
+
+::: perbedaan tip dengan Magisk
+
+KernelSU resmi menggunakan mekanisme OverlayFS (metamodule) untuk systemless, sedangkan ShizuSU, berbasis SukiSU-Ultra, menggunakan **Magic Mount (bind mount)** seperti Magisk. Keduanya mencapai tujuan yang sama: memodifikasi file `/system` tanpa memodifikasi partisi `/system` secara fisik. ShizuSU hanya menggunakan Magic Mount — tidak ada dua sistem modul. Lihat [Sistem Modul: Magic Mount](metamodule.md).
+:::
+
+
+
+### system.prop
+
+File ini mengikuti format yang sama dengan `build.prop`. Setiap baris terdiri dari `[kunci]=[nilai]`.
+
+### sepolicy.rule
+
+Jika modul Anda memerlukan beberapa tambalan sepolicy tambahan, harap tambahkan aturan tersebut ke dalam file ini. Setiap baris dalam file ini akan diperlakukan sebagai pernyataan kebijakan.
+
+### Injeksi initrc {#initrc-injection}
+
+ShizuSU menyediakan mekanisme untuk menyuntikkan arahan Android Init RC kustom ke dalam `init.rc` sistem. Hal ini memungkinkan modul untuk mendaftarkan layanan Android kustom, mengatur pemicu properti, atau melakukan tindakan bahasa Init lainnya tanpa memodifikasi partisi sistem.
+
+Selama boot, modul kernel ShizuSU mencegat panggilan sistem `read()` dan `fstat()`. Saat proses init Android membaca `/system/etc/init/hw/init.rc`, ShizuSU secara transparan menambahkan konten RC kustom ke bagian akhir file. Proses init menguraikan arahan yang disuntikkan ini sama seperti konten init.rc asli.
+
+Di sisi userspace, ksud menggabungkan semua file `.rc` dari modul yang diaktifkan menjadi satu file `modules.rc`, yang disimpan di partisi `/metadata`. File ini secara otomatis dibuat ulang setiap kali status modul berubah (diinstal, diaktifkan, dinonaktifkan, dihapus, dll.).
+
+#### File initrc modul
+
+Buat subdirektori `initrc/` di direktori modul Anda dan letakkan file `.rc` Anda di sana:
+
+```txt
+/data/adb/modules/<MODID>/
+├── initrc/
+│   ├── myservice.rc
+│   └── another.rc
+└── ...
+```
+
+::: tip
+- File harus memiliki ekstensi `.rc`.
+- Selama modul diaktifkan, semua file `.rc` di direktori `initrc/` akan disertakan (izin eksekusi tidak diperlukan).
+- File diproses dalam **urutan abjad nama file** di dalam direktori, dan modul diproses dalam **urutan abjad ID modul**.
+:::
+
+#### File initrc umum
+
+Selain file RC tingkat modul, Anda dapat menempatkan file `.rc` di direktori global:
+
+```txt
+/data/adb/initrc.d/
+├── myservice.rc
+└── another.rc
+```
+
+::: warning File initrc umum memerlukan izin eksekusi
+Tidak seperti direktori `initrc/` modul, file di `/data/adb/initrc.d/` **harus memiliki izin eksekusi** untuk disertakan. File `.rc` yang tidak dapat dieksekusi akan dilewati secara diam-diam.
+:::
+
+File `initrc.d/` umum diproses sebelum file RC modul apa pun.
+
+#### Contoh
+
+Berikut adalah contoh file `.rc` yang mendaftarkan layanan Android kustom:
+
+```rc
+service myservice /data/adb/modules/mymodule/bin/myservice
+    user root
+    group root
+    disabled
+    seclabel u:r:ksu:s0
+
+on property:sys.boot_completed=1
+    start myservice
+```
+
+Jika file ini ditempatkan di `/data/adb/modules/mymodule/initrc/myservice.rc`, itu akan mendaftarkan layanan bernama `myservice` saat boot dan memulainya ketika `sys.boot_completed=1` tercapai.
+
+#### Penyegaran Manual
+
+Anda dapat memicu pembuatan ulang `modules.rc` secara manual dengan perintah berikut (perubahan berlaku pada boot berikutnya):
+
+```sh
+ksud initrc refresh
+```
+
+::: tip
+- Injeksi initrc terjadi sangat awal dalam proses boot (saat init membaca init.rc), **sebelum** post-fs-data dan skrip modul apa pun dieksekusi.
+- Konten RC yang disuntikkan diperlakukan oleh init sebagai bagian dari init.rc asli, mendukung semua sintaks bahasa Android Init (definisi layanan, pemicu, pengaturan properti, dll.).
+- Injeksi initrc **tidak tersedia** dalam **mode late-load**, karena hook panggilan sistem tidak diinstal dalam mode tersebut.
+- Injeksi RC modul dapat dinonaktifkan dengan meneruskan parameter `--no-custom-rc` saat menambal gambar dengan ksud.
+:::
+
+## Pemasangan module
+
+Penginstal modul ShizuSU adalah modul ShizuSU yang dikemas dalam file zip yang dapat di-flash di aplikasi pengelola ShizuSU. Pemasang modul ShizuSU yang paling sederhana hanyalah modul ShizuSU yang dikemas sebagai file zip.
+
+```txt
+module.zip
+│
+├── customize.sh                       <--- (Optional, more details later)
+│                                           This script will be sourced by update-binary
+├── ...
+├── ...  /* The rest of module's files */
+│
+```
+
+:::peringatan
+Modul ShizuSU TIDAK didukung untuk diinstal dalam pemulihan kustom!!
+:::
+
+### Kostumisasi
+
+Jika Anda perlu menyesuaikan proses penginstalan modul, secara opsional Anda dapat membuat skrip di penginstal bernama `customize.sh`. Skrip ini akan _sourced_ (tidak dijalankan!) oleh skrip penginstal modul setelah semua file diekstrak dan izin default serta konteks sekon diterapkan. Ini sangat berguna jika modul Anda memerlukan penyiapan tambahan berdasarkan ABI perangkat, atau Anda perlu menyetel izin khusus/konteks kedua untuk beberapa file modul Anda.
+
+Jika Anda ingin sepenuhnya mengontrol dan menyesuaikan proses penginstalan, nyatakan `SKIPUNZIP=1` di `customize.sh` untuk melewati semua langkah penginstalan default. Dengan melakukannya, `customize.sh` Anda akan bertanggung jawab untuk menginstal semuanya dengan sendirinya.
+
+Skrip `customize.sh` berjalan di shell BusyBox `ash` ShizuSU dengan "Mode Mandiri" diaktifkan. Variabel dan fungsi berikut tersedia:
+
+#### Variable
+
+- `KSU` (bool): variabel untuk menandai bahwa skrip berjalan di lingkungan ShizuSU, dan nilai variabel ini akan selalu benar. Anda dapat menggunakannya untuk membedakan antara ShizuSU dan Magisk.
+- `KSU_VER` (string): string versi dari ShizuSU yang diinstal saat ini (mis. `v0.4.0`)
+- `KSU_VER_CODE` (int): kode versi ShizuSU yang terpasang saat ini di ruang pengguna (mis. `10672`)
+- `KSU_KERNEL_VER_CODE` (int): kode versi ShizuSU yang terpasang saat ini di ruang kernel (mis. `10672`)
+- `BOOTMODE` (bool): selalu `true` di ShizuSU
+- `MODPATH` (jalur): jalur tempat file modul Anda harus diinstal
+- `TMPDIR` (jalur): tempat di mana Anda dapat menyimpan file untuk sementara
+- `ZIPFILE` (jalur): zip instalasi modul Anda
+- `ARCH` (string): arsitektur CPU perangkat. Nilainya adalah `arm`, `arm64`, `x86`, atau `x64`
+- `IS64BIT` (bool): `true` jika `$ARCH` adalah `arm64` atau `x64`
+- `API` (int): level API (versi Android) perangkat (mis. `23` untuk Android 6.0)
+- `KSU_UAPI_VER` (int): versi UAPI ruang pengguna ShizuSU (ksud) (mis. `2`). Versi ini bertambah ketika ada perubahan yang merusak kompatibilitas pada driver kernel, dan dapat digunakan oleh modul untuk memeriksa kompatibilitas.
+- `KSU_RUNTIME_MODE` (string): mode runtime ShizuSU saat ini. Nilai yang mungkin adalah `built-in` (mode GKI, dikompilasi ke dalam kernel), `lkm` (dimuat sebagai modul kernel saat boot), atau `late-load` (dimuat sebagai modul kernel setelah boot).
+- `KSU_LATE_LOAD` (int?): jika ShizuSU dimuat secara terlambat setelah boot, variabel ini diatur ke `1`; jika tidak, variabel ini tidak diatur.
+
+::: peringatan
+Di ShizuSU, MAGISK_VER_CODE selalu 25200 dan MAGISK_VER selalu v25.2. Tolong jangan gunakan kedua variabel ini untuk menentukan apakah itu berjalan di ShizuSU atau tidak.
+:::
+
+#### Fungsi
+
+```txt
+ui_print <msg>
+    print <msg> to console
+    Avoid using 'echo' as it will not display in custom recovery's console
+
+abort <msg>
+    print error message <msg> to console and terminate the installation
+    Avoid using 'exit' as it will skip the termination cleanup steps
+
+set_perm <target> <owner> <group> <permission> [context]
+    if [context] is not set, the default is "u:object_r:system_file:s0"
+    this function is a shorthand for the following commands:
+       chown owner.group target
+       chmod permission target
+       chcon context target
+
+set_perm_recursive <directory> <owner> <group> <dirpermission> <filepermission> [context]
+    if [context] is not set, the default is "u:object_r:system_file:s0"
+    for all files in <directory>, it will call:
+       set_perm file owner group filepermission context
+    for all directories in <directory> (including itself), it will call:
+       set_perm dir owner group dirpermission context
+```
+
+## Boot scripts
+
+Di ShizuSU, skrip dibagi menjadi dua jenis berdasarkan mode operasinya: mode post-fs-data dan mode layanan late_start:
+
+- mode pasca-fs-data
+   - Tahap ini adalah BLOKIR. Proses boot dijeda sebelum eksekusi selesai, atau 10 detik telah berlalu.
+   - Skrip dijalankan sebelum modul apa pun dipasang. Ini memungkinkan pengembang modul untuk menyesuaikan modul mereka secara dinamis sebelum dipasang.
+   - Tahap ini terjadi sebelum Zygote dimulai, yang berarti segalanya di Android
+   - **PERINGATAN:** menggunakan `setprop` akan menghentikan proses booting! Silakan gunakan `resetprop -n <prop_name> <prop_value>` sebagai gantinya.
+   - **Hanya jalankan skrip dalam mode ini jika perlu.**
+- mode layanan late_start
+   - Tahap ini NON-BLOCKING. Skrip Anda berjalan paralel dengan proses booting lainnya.
+   - **Ini adalah tahap yang disarankan untuk menjalankan sebagian besar skrip.**
+
+Di ShizuSU, skrip startup dibagi menjadi dua jenis berdasarkan lokasi penyimpanannya: skrip umum dan skrip modul:
+
+- Skrip Umum
+   - Ditempatkan di `/data/adb/post-fs-data.d` atau `/data/adb/service.d`
+   - Hanya dieksekusi jika skrip disetel sebagai dapat dieksekusi (`chmod +x script.sh`)
+   - Skrip di `post-fs-data.d` berjalan dalam mode post-fs-data, dan skrip di `service.d` berjalan di mode layanan late_start.
+   - Modul seharusnya **TIDAK** menambahkan skrip umum selama instalasi
+- Skrip Modul
+   - Ditempatkan di folder modul itu sendiri
+   - Hanya dijalankan jika modul diaktifkan
+   - `post-fs-data.sh` berjalan dalam mode post-fs-data, dan `service.sh` berjalan dalam mode layanan late_start.
+
+Semua skrip boot akan berjalan di shell BusyBox `ash` ShizuSU dengan "Mode Mandiri" diaktifkan.
+
+## Mode late-load {#late-load-mode}
+
+Selain alur boot standar yang dijelaskan di atas, ShizuSU mendukung **mode late-load** untuk skenario LKM (Loadable Kernel Module). Dalam mode ini, modul kernel ShizuSU dimuat **setelah sistem sepenuhnya boot**, bukan selama proses init.
+
+### Kapan late-load terjadi?
+
+Late-load dipicu dengan menjalankan perintah `ksud late-load`. Perintah ini:
+
+1. Mendeteksi versi KMI saat ini dan memuat `kernelsu.ko` yang sesuai dari aset tertanam.
+2. Melakukan inisialisasi modul (aturan SELinux, daftar izin, fitur, dll.) yang biasanya terjadi saat boot.
+
+Karena sistem sudah sepenuhnya berjalan, mekanisme tertentu saat boot tidak tersedia atau tidak diperlukan.
+
+### Perbedaan dari boot standar
+
+| Perilaku | Boot standar | Mode late-load |
+|----------|:---:|:---:|
+| Modul kernel dimuat oleh init (PID 1) | Ya | Tidak (dimuat setelah boot) |
+| Hook kprobe ksud (execve/read/fstat/input) | Ya | Dilewati |
+| Deteksi mode aman (tombol volume) | Ya | Selalu dinonaktifkan |
+| Pengambilan log boot (logcat/dmesg) | Ya | Dilewati |
+| Pemeriksaan koeksistensi Magisk | Ya | Dilewati |
+| Event `post-fs-data` dilaporkan ke kernel | Ya | Dilewati |
+| Event `boot-completed` dilaporkan ke kernel | Ya | Diatur langsung saat init |
+| Skrip `post-fs-data.sh` / `post-fs-data.d/` | Ya | Digantikan oleh tahap `late-load` |
+| Pemuatan `system.prop` | Ya | Ya |
+| Pemasangan modul Magic Mount | Ya | Ya |
+| Skrip `post-mount.sh` / `post-mount.d/` | Ya | Ya |
+| Skrip `service.sh` / `service.d/` | Ya | Ya |
+| Skrip `boot-completed.sh` / `boot-completed.d/` | Ya | Ya |
+| Variabel lingkungan `KSU_LATE_LOAD` | Tidak diatur | Diatur ke `1` |
+| Flag info kernel `0x4` | Tidak diatur | Diatur |
+
+### Urutan eksekusi skrip
+
+Dalam mode late-load, urutan eksekusi skrip adalah:
+
+```txt
+ksud late-load:
+  1. Muat kernelsu.ko (jika belum dimuat)
+  2. Ekstrak biner, tangani pembaruan modul, muat aturan SELinux, inisialisasi fitur
+  3. Jalankan skrip late-load.d/ dan skrip late-load modul (blocking)
+  4. Muat system.prop (resetprop -n)
+  5. Jalankan pemasangan modul Magic Mount
+  6. Jalankan skrip post-mount.d/ dan post-mount.sh modul (blocking)
+  7. Jalankan skrip service.d/ dan service.sh modul (non-blocking)
+  8. Jalankan skrip boot-completed.d/ dan boot-completed.sh modul (non-blocking)
+```
+
+### Skrip khusus late-load
+
+Modul dapat menyediakan skrip `late-load.sh` yang dijalankan **hanya** dalam mode late-load, sebagai pengganti `post-fs-data.sh`. Skrip ini berjalan sebelum pemasangan modul, mirip dengan `post-fs-data.sh` dalam alur standar.
+
+Selain itu, skrip umum dapat ditempatkan di `/data/adb/late-load.d/` untuk dijalankan pada tahap ini.
+
+### Mendeteksi mode late-load dalam skrip
+
+Modul dapat mendeteksi mode late-load dengan memeriksa variabel lingkungan `KSU_LATE_LOAD`:
+
+```sh
+if [ "$KSU_LATE_LOAD" = "1" ]; then
+    # Berjalan dalam mode late-load
+    echo "Late-load mode detected"
+fi
+```
+
+Ini memungkinkan modul menyesuaikan perilakunya, misalnya melewatkan operasi yang hanya diperlukan saat boot awal.
+
+## Kenyamanan Manajemen Modul {#module-convenience}
+
+ShizuSU menyediakan banyak kemudahan manajemen modul:
+
+- **Cadangan & Pulihkan**：Cadangkan/pulihkan modul terpasang dan daftar putih root sekali sentuh.
+- **Instalasi massal**：Instal banyak zip modul sekaligus; kegagalan tunggal tidak menghentikan proses, kegagalan dikumpulkan dan dilaporkan di akhir.
+- **Manajemen massal**：Aktifkan, nonaktifkan, nonaktifkan semua, hapus semua dalam sekali sentuh.

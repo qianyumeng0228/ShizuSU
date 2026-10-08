@@ -96,3 +96,32 @@ payload 现结构：`{ gistId, shards: [...], moduleId, moduleName, author, vers
 
 **修法**：`ModuleRepoUploadViewModel.onSelectInstalled` 改用 `Shell.cmd("cat /data/adb/modules/$id/module.prop 2>/dev/null").exec().out.joinToString("\n").trim()` 读取 module.prop，与 `listInstalledModules()` 同一 root 通道。
 
+## 八、root 通道脆弱点修复（真机联测根因）
+
+真机侧确认 root shell 无法重新加冕（内核拒绝），根因在 App 侧代码。三处修复：
+
+### 8.1 KsuCli 单例 Shell 死引用
+
+**旧**：`object KsuCli { val SHELL = createRootShell(); val GLOBAL_MNT_SHELL = createRootShell(true) }`，进程首次访问时一次性构造；root 守护进程死亡后 libsu 不会自动重建 Shell 对象，`getRootShell()` 永远返回死引用。
+
+**新**（`ui/util/KsuCli.kt:54-77`）：
+- `SHELL` / `GLOBAL_MNT_SHELL` 改为 `@Volatile var ... private set`；
+- 新增 `KsuCli.ensureRootShell(globalMnt)`：取用时先检查 `current.isDead`，死亡则 `createRootShell(...)` 重建并替换字段后返回；
+- `getRootShell(globalMnt)` 改走 `KsuCli.ensureRootShell(globalMnt)`。
+
+### 8.2 静默回退掩盖 root 丢失
+
+**旧**：`createRootShell()` 兜底 `sh`（非 root）；`listModules()` 用 `.ifBlank { "[]" }` 把空输出包成空数组，UI 表现为"无模块"而非"root 不可用"。
+
+**新**（`ui/util/KsuCli.kt:listModules()`）：
+- 先 `id -u` 校验 root：输出非 `0` 直接抛 `IllegalStateException("root 不可用（id -u=...）")`；
+- `ksud module list` 退出码非 0 抛错（带 stderr）；
+- 空输出也抛错（正常空模块时 ksud 返回 `[]`，不会空）。
+
+### 8.3 失败可识别
+
+**旧**：`ModuleViewModel.loadModuleList` 对 `repo.getModules()` 失败 `getOrElse { emptyList() }` 静默吞错。
+
+**新**（`ui/viewmodel/ModuleViewModel.kt:loadModuleList`）：失败时 `_moduleEvent.send(ModuleEffect.Toast(it.message ?: "读取模块列表失败"))`，UI 弹 Toast，不再伪装空列表。
+
+

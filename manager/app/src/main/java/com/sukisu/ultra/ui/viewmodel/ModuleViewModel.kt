@@ -236,6 +236,8 @@ class ModuleViewModel(
         val parsedModules = withContext(Dispatchers.IO) {
             repo.getModules().getOrElse {
                 Log.e(TAG, "fetchModuleList: ", it)
+                // [ShizuSU] root 不可用 / shell 死引用时给可识别错误反馈，而非静默空列表
+                _moduleEvent.send(ModuleEffect.Toast(it.message ?: "读取模块列表失败"))
                 emptyList()
             }
         }

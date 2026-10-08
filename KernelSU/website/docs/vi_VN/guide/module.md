@@ -1,0 +1,434 @@
+# Hướng dẫn mô-đun
+
+ShizuSU cung cấp một cơ chế mô-đun giúp đạt được hiệu quả sửa đổi thư mục hệ thống trong khi vẫn duy trì tính toàn vẹn của phân vùng system. Cơ chế này thường được gọi là "systemless".
+
+Cơ chế mô-đun của ShizuSU gần giống với Magisk. Nếu bạn đã quen với việc phát triển mô-đun Magisk thì việc phát triển các mô-đun ShizuSU cũng rất tương tự. Bạn có thể bỏ qua phần giới thiệu các mô-đun bên dưới và chỉ cần đọc [difference-with-magisk](difference-with-magisk.md).
+
+::: info HỆ THỐNG MODULE DỰA TRÊN MAGIC MOUNT
+Hệ thống module của ShizuSU dựa trên **Magic Mount** (từ SukiSU-Ultra), không cần cài đặt metamodule để mount thư mục `system`. Các module sửa đổi tệp `/system` hoạt động ngay lập tức. Xem [Hệ thống module: Magic Mount](metamodule.md).
+:::
+
+## Module kernel KPM {#kpm}
+
+KernelPatch Module (KPM) cho phép tải module trực tiếp ở cấp kernel, phù hợp cho các sửa đổi và nâng cao kernel ở mức cao. ShizuSU hỗ trợ đầy đủ KPM (được port từ Apatch). Để sử dụng KPM, hãy bật `CONFIG_KPM=y` khi biên dịch kernel.
+
+## WebUI
+
+ShizuSU modules support displaying interfaces and interacting with users. Xem [tài liệu WebUI](module-webui.md) để biết thêm chi tiết.
+
+## Cấu hình module
+
+ShizuSU cung cấp hệ thống cấu hình tích hợp cho phép các module lưu trữ các cài đặt key-value liên tục hoặc tạm thời. Để biết thêm chi tiết, xem [tài liệu Cấu hình module](module-config.md).
+
+## Busybox
+
+ShizuSU cung cấp tính năng nhị phân BusyBox hoàn chỉnh (bao gồm hỗ trợ SELinux đầy đủ). Tệp thực thi được đặt tại `/data/adb/ksu/bin/busybox`. BusyBox của ShizuSU hỗ trợ "ASH Standalone Shell Mode" có thể chuyển đổi thời gian chạy. Standalone mode này có nghĩa là khi chạy trong shell `ash` của BusyBox, mọi lệnh sẽ trực tiếp sử dụng applet trong BusyBox, bất kể cái gì được đặt là `PATH`. Ví dụ: các lệnh như `ls`, `rm`, `chmod` sẽ **KHÔNG** sử dụng những gì có trong `PATH` (trong trường hợp Android theo mặc định, nó sẽ là `/system/bin/ls`, ` /system/bin/rm` và `/system/bin/chmod` tương ứng), nhưng thay vào đó sẽ gọi trực tiếp các ứng dụng BusyBox nội bộ. Điều này đảm bảo rằng các tập lệnh luôn chạy trong môi trường có thể dự đoán được và luôn có bộ lệnh đầy đủ cho dù nó đang chạy trên phiên bản Android nào. Để buộc lệnh _not_ sử dụng BusyBox, bạn phải gọi tệp thực thi có đường dẫn đầy đủ.
+
+Mỗi tập lệnh shell đơn lẻ chạy trong ngữ cảnh của ShizuSU sẽ được thực thi trong shell `ash` của BusyBox với standalone mode được bật. Đối với những gì liên quan đến nhà phát triển bên thứ 3, điều này bao gồm tất cả các tập lệnh khởi động và tập lệnh cài đặt mô-đun.
+
+Đối với những người muốn sử dụng tính năng "Standalone mode" này bên ngoài ShizuSU, có 2 cách để kích hoạt tính năng này:
+
+1. Đặt biến môi trường `ASH_STANDALONE` thành `1`<br>Ví dụ: `ASH_STANDALONE=1 /data/adb/ksu/bin/busybox sh <script>`
+2. Chuyển đổi bằng các tùy chọn dòng lệnh:<br>`/data/adb/ksu/bin/busybox sh -o độc lập <script>`
+
+Để đảm bảo tất cả shell `sh` tiếp theo được thực thi cũng chạy ở standalone mode, tùy chọn 1 là phương thức ưu tiên (và đây là những gì ShizuSU và ShizuSU manager sử dụng nội bộ) vì các biến môi trường được kế thừa xuống các tiến trình con.
+
+::: tip sự khác biệt với Magisk
+
+BusyBox của ShizuSU hiện đang sử dụng tệp nhị phân được biên dịch trực tiếp từ dự án Magisk. **Cảm ơn Magisk!** Vì vậy, bạn không phải lo lắng về vấn đề tương thích giữa các tập lệnh BusyBox trong Magisk và ShizuSU vì chúng hoàn toàn giống nhau!
+:::
+
+## Mô-đun hạt nhânSU
+
+Mô-đun ShizuSU là một thư mục được đặt trong `/data/adb/modules` với cấu trúc bên dưới:
+
+```txt
+/data/adb/modules
+├── .
+├── .
+|
+├── $MODID                  <--- Thư mục được đặt tên bằng ID của mô-đun
+│   │
+│   │      *** Nhận Dạng Mô-đun ***
+│   │
+│   ├── module.prop         <--- Tệp này lưu trữ metadata của mô-đun
+│   │
+│   │      *** Nội Dung Chính ***
+│   │
+│   ├── system              <--- Thư mục này sẽ được gắn kết nếu skip_mount không tồn tại
+│   │   ├── ...
+│   │   ├── ...
+│   │   └── ...
+│   │
+│   │      *** Cờ Trạng Thái ***
+│   │
+│   ├── skip_mount          <--- Nếu tồn tại, ShizuSU sẽ KHÔNG gắn kết thư mục hệ thống của bạn
+│   ├── disable             <--- Nếu tồn tại, mô-đun sẽ bị vô hiệu hóa
+│   ├── remove              <--- Nếu tồn tại, mô-đun sẽ bị xóa trong lần khởi động lại tiếp theo
+│   │
+│   │      *** Tệp Tùy Chọn ***
+│   │
+│   ├── post-fs-data.sh     <--- Tập lệnh này sẽ được thực thi trong post-fs-data
+│   ├── post-mount.sh       <--- Tập lệnh này sẽ được thực thi trong post-mount
+│   ├── service.sh          <--- Tập lệnh này sẽ được thực thi trong dịch vụ late_start
+│   ├── boot-completed.sh   <--- Tập lệnh này sẽ được thực thi khi khởi động xong
+|   ├── uninstall.sh        <--- Tập lệnh này sẽ được thực thi khi ShizuSU xóa mô-đun của bạn
+│   ├── system.prop         <--- Các thuộc tính trong tệp này sẽ được tải dưới dạng thuộc tính hệ thống bằng resetprop
+│   ├── sepolicy.rule       <--- Quy tắc riêng biệt tùy chỉnh bổ sung
+│   ├── initrc/             <--- Các tệp .rc trong thư mục này sẽ được chèn vào init.rc khi khởi động
+│   │   ├── myservice.rc
+│   │   └── ...
+│   │
+│   │      *** Được Tạo Tự Động, KHÔNG TẠO HOẶC SỬA ĐỔI THỦ CÔNG ***
+│   │
+│   ├── vendor              <--- Một liên kết tượng trưng đến $MODID/system/vendor
+│   ├── product             <--- Một liên kết tượng trưng đến $MODID/system/product
+│   ├── system_ext          <--- Một liên kết tượng trưng đến $MODID/system/system_ext
+│   │
+│   │      *** Mọi tập tin / thư mục bổ sung đều được phép ***
+│   │
+│   ├── ...
+│   └── ...
+|
+├── another_module
+│   ├── .
+│   └── .
+├── .
+├── .
+```
+
+::: tip sự khác biệt với Magisk
+ShizuSU không có hỗ trợ tích hợp cho Zygisk nên không có nội dung liên quan đến Zygisk trong mô-đun. Tuy nhiên, bạn có thể sử dụng [ZygiskNext](https://github.com/Dr-TSNG/ZygiskNext) để hỗ trợ các mô-đun Zygisk. Trong trường hợp này, nội dung của mô-đun Zygisk giống hệt với nội dung được Magisk hỗ trợ.
+:::
+
+### module.prop
+
+module.prop là tệp cấu hình cho mô-đun. Trong ShizuSU, nếu một mô-đun không chứa tệp này, nó sẽ không được nhận dạng là mô-đun. Định dạng của tập tin này như sau:
+
+```txt
+id=<string>
+name=<string>
+version=<string>
+versionCode=<int>
+author=<string>
+description=<string>
+updateJson=<url> (optional)
+actionIcon=<path> (optional)
+webuiIcon=<path> (optional)
+```
+
+- `id` phải khớp với biểu thức chính quy này: `^[a-zA-Z][a-zA-Z0-9._-]+$`<br>
+   ví dụ: ✓ `a_module`, ✓ `a.module`, ✓ `module-101`, ✗ `a module`, ✗ `1_module`, ✗ `-a-module`<br>
+   Đây là **mã định danh duy nhất** của mô-đun của bạn. Bạn không nên thay đổi nó sau khi được xuất bản.
+- `versionCode` phải là **số nguyên**. Điều này được sử dụng để so sánh các phiên bản.
+- Các chuỗi khác không được đề cập ở trên có thể là chuỗi **một dòng** bất kỳ.
+- Đảm bảo sử dụng kiểu ngắt dòng `UNIX (LF)` chứ không phải `Windows (CR+LF)` hoặc `Macintosh (CR)`.
+- `actionIcon` và `webuiIcon` là các đường dẫn hình ảnh tùy chọn, được dùng làm
+  biểu tượng mặc định cho phím tắt hành động và phím tắt WebUI của mô-đun trong
+  ứng dụng quản lý. Các đường dẫn này phải là đường dẫn tương đối so với thư mục gốc
+  của mô-đun. Ví dụ, `actionIcon=icon/icon.png` sẽ được ánh xạ thành `<MODDIR>/icon/icon.png`.
+
+::: tip MÔ TẢ ĐỘNG
+Trường `description` có thể được ghi đè động khi chạy bằng hệ thống cấu hình mô-đun. Xem [Ghi đè Mô tả Mô-đun](module-config.md#overriding-module-description) để biết chi tiết.
+:::
+
+### Tập lệnh Shell
+
+Vui lòng đọc phần [Boot Scripts](#boot-scripts) để hiểu sự khác biệt giữa `post-fs-data.sh` và `service.sh`. Đối với hầu hết các nhà phát triển mô-đun, `service.sh` sẽ đủ tốt nếu bạn chỉ cần chạy tập lệnh khởi động, nếu bạn cần chạy tập lệnh sau khi khởi động xong, vui lòng sử dụng `boot-completed.sh`. Nếu bạn muốn làm gì đó sau khi gắn các lớp phủ, vui lòng sử dụng `post-mount.sh`.
+
+Trong tất cả các tập lệnh của mô-đun của bạn, vui lòng sử dụng `MODDIR=${0%/*}` để lấy đường dẫn thư mục cơ sở của mô-đun của bạn; **KHÔNG** mã hóa cứng đường dẫn mô-đun của bạn trong tập lệnh.
+
+::: tip sự khác biệt với Magisk
+Bạn có thể sử dụng biến môi trường KSU để xác định xem tập lệnh đang chạy trong ShizuSU hay Magisk. Nếu chạy trong ShizuSU, giá trị này sẽ được đặt thành true.
+:::
+
+### thư mục `system`
+
+Nội dung của thư mục này sẽ được phủ lên trên phân vùng /system của hệ thống bằng **Magic Mount (bind mount)** sau khi hệ thống được khởi động. Điều này có nghĩa rằng:
+
+1. Các file có cùng tên với các file trong thư mục tương ứng trong hệ thống sẽ bị ghi đè bởi các file trong thư mục này.
+2. Các thư mục có cùng tên với thư mục tương ứng trong hệ thống sẽ được gộp với các thư mục trong thư mục này.
+
+Nếu bạn muốn xóa một tập tin hoặc thư mục trong thư mục hệ thống gốc, bạn có thể khai báo một biến có tên `REMOVE` chứa danh sách các thư mục trong `customize.sh`. ShizuSU sẽ ẩn các tệp này bằng Magic Mount (phân vùng /system không thực sự bị thay đổi). Ví dụ:
+
+```sh
+REMOVE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+```
+
+`/system/app/YouTube` và `/system/app/Bloatware` sẽ bị ẩn sau khi mô-đun có hiệu lực.
+
+Nếu bạn muốn thay thế một thư mục trong hệ thống, bạn có thể khai báo một biến có tên `REPLACE` trong tệp `customize.sh` của mình. ShizuSU sẽ bind mount một thư mục trống lên đường dẫn đích, thay thế toàn bộ thư mục. Ví dụ:
+
+REPLACE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+
+`/system/app/YouTube` và `/system/app/Bloatware` sẽ được thay thế bằng các thư mục trống sau khi mô-đun có hiệu lực.
+
+::: tip Khác biệt với KernelSU chính thức
+
+KernelSU chính thức sử dụng cơ chế OverlayFS (metamodule) để thực hiện systemless, còn ShizuSU dựa trên SukiSU-Ultra, giống Magisk sử dụng **Magic Mount (bind mount)**. Cả hai đều đạt được cùng một mục tiêu: sửa đổi tệp `/system` mà không sửa đổi vật lý phân vùng `/system`. ShizuSU chỉ sử dụng Magic Mount — không tồn tại hai hệ thống module. Xem [Hệ thống module: Magic Mount](metamodule.md).
+:::
+
+### system.prop
+
+Tệp này có cùng định dạng với `build.prop`. Mỗi dòng bao gồm `[key]=[value]`.
+
+### sepolicy.rule
+
+Nếu mô-đun của bạn yêu cầu một số bản vá lỗi chính sách bổ sung, vui lòng thêm các quy tắc đó vào tệp này. Mỗi dòng trong tệp này sẽ được coi là một tuyên bố chính sách.
+
+### Chèn initrc (initrc Injection) {#initrc-injection}
+
+ShizuSU cung cấp cơ chế chèn các chỉ thị Android Init RC tùy chỉnh vào `init.rc` của hệ thống. Điều này cho phép các mô-đun đăng ký các dịch vụ Android tùy chỉnh, thiết lập trình kích hoạt thuộc tính hoặc thực hiện các hành động ngôn ngữ Init khác mà không cần sửa đổi phân vùng hệ thống.
+
+Trong quá trình khởi động, mô-đun hạt nhân ShizuSU chặn các lệnh gọi hệ thống `read()` và `fstat()`. Khi quá trình init của Android đọc `/system/etc/init/hw/init.rc`, ShizuSU sẽ thêm nội dung RC tùy chỉnh vào cuối tệp một cách minh bạch. Quá trình init phân tích các chỉ thị được chèn này giống như nội dung init.rc gốc.
+
+Ở phía không gian người dùng, ksud nối tất cả các tệp `.rc` từ các mô-đun đã bật thành một tệp `modules.rc` duy nhất, được lưu trữ trên phân vùng `/metadata`. Tệp này tự động được tạo lại bất cứ khi nào trạng thái của mô-đun thay đổi (cài đặt, bật, tắt, gỡ cài đặt, v.v.).
+
+#### Tệp initrc của mô-đun
+
+Tạo một thư mục con `initrc/` trong thư mục mô-đun của bạn và đặt các tệp `.rc` của bạn vào đó:
+
+```txt
+/data/adb/modules/<MODID>/
+├── initrc/
+│   ├── myservice.rc
+│   └── another.rc
+└── ...
+```
+
+::: tip
+- Các tệp phải có đuôi mở rộng là `.rc`.
+- Miễn là mô-đun được bật, tất cả các tệp `.rc` trong thư mục `initrc/` sẽ được bao gồm (không cần quyền thực thi).
+- Các tệp được xử lý theo **thứ tự bảng chữ cái của tên tệp** trong thư mục và các mô-đun được xử lý theo **thứ tự bảng chữ cái của ID mô-đun**.
+:::
+
+#### Tệp initrc chung
+
+Ngoài các tệp RC ở cấp mô-đun, bạn có thể đặt các tệp `.rc` trong thư mục toàn cầu:
+
+```txt
+/data/adb/initrc.d/
+├── myservice.rc
+└── another.rc
+```
+
+::: warning Các tệp initrc chung yêu cầu quyền thực thi
+Khác với thư mục `initrc/` của mô-đun, các tệp trong `/data/adb/initrc.d/` **phải có quyền thực thi** để được bao gồm. Các tệp `.rc` không thực thi được sẽ bị bỏ qua một cách âm thầm.
+:::
+
+Các tệp `initrc.d/` chung được xử lý trước bất kỳ tệp RC mô-đun nào.
+
+#### Ví dụ
+
+Dưới đây là ví dụ về tệp `.rc` đăng ký một dịch vụ Android tùy chỉnh:
+
+```rc
+service myservice /data/adb/modules/mymodule/bin/myservice
+    user root
+    group root
+    disabled
+    seclabel u:r:ksu:s0
+
+on property:sys.boot_completed=1
+    start myservice
+```
+
+Nếu tệp này được đặt tại `/data/adb/modules/mymodule/initrc/myservice.rc`, nó sẽ đăng ký một dịch vụ có tên là `myservice` khi khởi động và bắt đầu nó khi đạt đến `sys.boot_completed=1`.
+
+#### Làm mới thủ công
+
+Bạn có thể kích hoạt thủ công việc tạo lại `modules.rc` bằng lệnh sau (các thay đổi sẽ có hiệu lực trong lần khởi động tiếp theo):
+
+```sh
+ksud initrc refresh
+```
+
+::: tip
+- Việc chèn initrc xảy ra rất sớm trong quá trình khởi động (khi init đọc init.rc), **trước** post-fs-data và bất kỳ tập lệnh mô-đun nào được thực thi.
+- Nội dung RC được chèn được init coi là một phần của init.rc gốc, hỗ trợ tất cả cú pháp ngôn ngữ Android Init (định nghĩa dịch vụ, trình kích hoạt, cài đặt thuộc tính, v.v.).
+- Chèn initrc **không khả dụng** trong **chế độ late-load**, vì các móc gọi hệ thống không được cài đặt trong chế độ đó.
+- Có thể tắt chèn RC mô-đun bằng cách truyền tham số `--no-custom-rc` khi vá hình ảnh bằng ksud.
+:::
+
+## Trình cài đặt mô-đun
+
+Trình cài đặt mô-đun ShizuSU là mô-đun ShizuSU được đóng gói trong tệp zip có thể được flash trong APP ShizuSU manager. Trình cài đặt mô-đun ShizuSU đơn giản chỉ là mô-đun ShizuSU được đóng gói dưới dạng tệp zip.
+
+```txt
+module.zip
+│
+├── customize.sh                       <--- (Tùy chọn, biết thêm chi tiết sau)
+│                                           Tập lệnh này sẽ có nguồn gốc từ update-binary
+├── ...
+├── ...  /* Các tập tin còn lại của mô-đun */
+│
+```
+
+:::warning
+Mô-đun ShizuSU KHÔNG được hỗ trợ để cài đặt trong khôi phục tùy chỉnh!!
+:::
+
+### Tùy chỉnh
+
+Nếu bạn cần tùy chỉnh quá trình cài đặt mô-đun, bạn có thể tùy ý tạo một tập lệnh trong trình cài đặt có tên `customize.sh`. Tập lệnh này sẽ được _sourced_ (không được thực thi!) bởi tập lệnh cài đặt mô-đun sau khi tất cả các tệp được trích xuất và các quyền mặc định cũng như văn bản thứ hai được áp dụng. Điều này rất hữu ích nếu mô-đun của bạn yêu cầu thiết lập bổ sung dựa trên ABI của thiết bị hoặc bạn cần đặt các quyền/văn bản thứ hai đặc biệt cho một số tệp mô-đun của mình.
+
+Nếu bạn muốn kiểm soát và tùy chỉnh hoàn toàn quá trình cài đặt, hãy khai báo `SKIPUNZIP=1` trong `customize.sh` để bỏ qua tất cả các bước cài đặt mặc định. Bằng cách đó, `customize.sh` của bạn sẽ chịu trách nhiệm cài đặt mọi thứ.
+
+Tập lệnh `customize.sh` chạy trong shell `ash` BusyBox của ShizuSU với "Chế độ độc lập" được bật. Có sẵn các biến và hàm sau:
+
+#### Biến
+
+- `KSU` (bool): biến để đánh dấu script đang chạy trong môi trường ShizuSU, và giá trị của biến này sẽ luôn đúng. Bạn có thể sử dụng nó để phân biệt giữa ShizuSU và Magisk.
+- `KSU_VER` (chuỗi): chuỗi phiên bản của ShizuSU được cài đặt hiện tại (ví dụ: `v0.4.0`)
+- `KSU_VER_CODE` (int): mã phiên bản của ShizuSU được cài đặt hiện tại trong không gian người dùng (ví dụ: `10672`)
+- `KSU_KERNEL_VER_CODE` (int): mã phiên bản của ShizuSU được cài đặt hiện tại trong không gian kernel (ví dụ: `10672`)
+- `BOOTMODE` (bool): luôn là `true` trong ShizuSU
+- `MODPATH` (đường dẫn): đường dẫn nơi các tập tin mô-đun của bạn sẽ được cài đặt
+- `TMPDIR` (đường dẫn): nơi bạn có thể lưu trữ tạm thời các tập tin
+- `ZIPFILE` (đường dẫn): zip cài đặt mô-đun của bạn
+- `ARCH` (chuỗi): kiến trúc CPU của thiết bị. Giá trị là `arm`, `arm64`, `x86` hoặc `x64`
+- `IS64BIT` (bool): `true` nếu `$ARCH` là `arm64` hoặc `x64`
+- `API` (int): cấp độ API (phiên bản Android) của thiết bị (ví dụ: `23` cho Android 6.0)
+- `KSU_UAPI_VER` (int): phiên bản UAPI của không gian người dùng ShizuSU (ksud) (ví dụ: `2`). Phiên bản này được tăng lên khi có thay đổi phá vỡ tương thích trong driver kernel, và có thể được module sử dụng để kiểm tra tính tương thích.
+- `KSU_RUNTIME_MODE` (string): chế độ chạy hiện tại của ShizuSU. Các giá trị có thể là `built-in` (chế độ GKI, được biên dịch vào kernel), `lkm` (được tải dưới dạng mô-đun kernel khi khởi động), hoặc `late-load` (được tải dưới dạng mô-đun kernel sau khi khởi động).
+- `KSU_LATE_LOAD` (int?): nếu ShizuSU được tải muộn sau khi khởi động, biến này được đặt thành `1`; nếu không, biến này không được đặt.
+
+::: warning
+Trong ShizuSU, MAGISK_VER_CODE luôn là 25200 và MAGISK_VER luôn là v25.2. Vui lòng không sử dụng hai biến này để xác định xem nó có chạy trên ShizuSU hay không.
+:::
+
+#### Hàm
+
+```txt
+ui_print <msg>
+    in <msg> ra console
+    Tránh sử dụng 'echo' vì nó sẽ không hiển thị trong console của recovery tùy chỉnh
+
+abort <msg>
+    in thông báo lỗi <msg> ra bàn điều khiển và chấm dứt cài đặt
+    Tránh sử dụng 'exit' vì nó sẽ bỏ qua các bước dọn dẹp chấm dứt
+
+set_perm <target> <owner> <group> <permission> [context]
+    nếu [context] không được đặt, mặc định là "u:object_r:system_file:s0"
+    chức năng này là một shorthand cho các lệnh sau:
+       chown owner.group target
+       chmod permission target
+       chcon context target
+
+set_perm_recursive <directory> <owner> <group> <dirpermission> <filepermission> [context]
+    nếu [context] không được đặt, mặc định là "u:object_r:system_file:s0"
+    đối với tất cả các tệp trong <directory>, nó sẽ gọi:
+       bối cảnh cấp phép tệp của nhóm chủ sở hữu tệp set_perm
+    đối với tất cả các thư mục trong <directory> (bao gồm cả chính nó), nó sẽ gọi:
+       set_perm bối cảnh phân quyền của nhóm chủ sở hữu thư mục
+```
+
+## Tập lệnh khởi động
+
+Trong ShizuSU, tập lệnh được chia thành hai loại dựa trên chế độ chạy của chúng: chế độ post-fs-data và chế độ dịch vụ late_start:
+
+- chế độ post-fs-data
+   - Giai đoạn này là BLOCKING. Quá trình khởi động bị tạm dừng trước khi thực thi xong hoặc đã trôi qua 10 giây.
+   - Các tập lệnh chạy trước khi bất kỳ mô-đun nào được gắn kết. Điều này cho phép nhà phát triển mô-đun tự động điều chỉnh các mô-đun của họ trước khi nó được gắn kết.
+   - Giai đoạn này xảy ra trước khi Zygote được khởi động, điều này gần như có ý nghĩa đối với mọi thứ trong Android
+   - **CẢNH BÁO:** sử dụng `setprop` sẽ làm quá trình khởi động bị nghẽn! Thay vào đó, vui lòng sử dụng `resetprop -n <prop_name> <prop_value>`.
+   - **Chỉ chạy tập lệnh ở chế độ này nếu cần thiết.**
+- chế độ dịch vụ late_start
+   - Giai đoạn này là NON-BLOCKING. Tập lệnh của bạn chạy song song với phần còn lại của quá trình khởi động.
+   - **Đây là giai đoạn được khuyến nghị để chạy hầu hết các tập lệnh.**
+
+Trong ShizuSU, tập lệnh khởi động được chia thành hai loại dựa trên vị trí lưu trữ của chúng: tập lệnh chung và tập lệnh mô-đun:
+
+- Kịch Bản Chung
+   - Được đặt trong `/data/adb/post-fs-data.d`, `/data/adb/service.d`, `/data/adb/post-mount.d` hoặc `/data/adb/boot- đã hoàn thành.d`
+   - Chỉ được thực thi nếu tập lệnh được đặt là có thể thực thi được (`chmod +x script.sh`)
+   - Các tập lệnh trong `post-fs-data.d` chạy ở chế độ post-fs-data và các tập lệnh trong `service.d` chạy ở chế độ dịch vụ late_start.
+   - Các mô-đun **KHÔNG** thêm các tập lệnh chung trong quá trình cài đặt
+- Tập Lệnh Mô-đun
+   - Được đặt trong thư mục riêng của mô-đun
+   - Chỉ thực hiện nếu mô-đun được kích hoạt
+   - `post-fs-data.sh` chạy ở chế độ post-fs-data, `service.sh` chạy ở chế độ dịch vụ late_start, `boot-completed.sh` chạy khi khởi động xong, `post-mount.sh` chạy sau khi gắn kết module.
+
+Tất cả các tập lệnh khởi động sẽ chạy trong shell `ash` BusyBox của ShizuSU với "Standalone Mode" được bật.
+
+## Chế độ late-load {#late-load-mode}
+
+Ngoài quy trình khởi động tiêu chuẩn được mô tả ở trên, ShizuSU hỗ trợ **chế độ late-load** cho các tình huống LKM (Loadable Kernel Module). Trong chế độ này, mô-đun kernel ShizuSU được tải **sau khi hệ thống đã khởi động hoàn toàn**, thay vì trong quá trình init.
+
+### Khi nào late-load xảy ra?
+
+Late-load được kích hoạt bằng cách chạy lệnh `ksud late-load`. Lệnh này:
+
+1. Phát hiện phiên bản KMI hiện tại và tải `kernelsu.ko` tương ứng từ tài nguyên nhúng.
+2. Thực hiện khởi tạo mô-đun (quy tắc SELinux, danh sách cho phép, tính năng, v.v.) thường xảy ra trong quá trình khởi động.
+
+Vì hệ thống đã chạy hoàn toàn, một số cơ chế thời gian khởi động không khả dụng hoặc không cần thiết.
+
+### Sự khác biệt so với khởi động tiêu chuẩn
+
+| Hành vi | Khởi động tiêu chuẩn | Chế độ late-load |
+|---------|:---:|:---:|
+| Mô-đun kernel được tải bởi init (PID 1) | Có | Không (tải sau khi khởi động) |
+| Hook kprobe của ksud (execve/read/fstat/input) | Có | Bỏ qua |
+| Phát hiện chế độ an toàn (phím âm lượng) | Có | Luôn tắt |
+| Thu thập nhật ký khởi động (logcat/dmesg) | Có | Bỏ qua |
+| Kiểm tra cùng tồn tại với Magisk | Có | Bỏ qua |
+| Sự kiện `post-fs-data` báo cáo cho kernel | Có | Bỏ qua |
+| Sự kiện `boot-completed` báo cáo cho kernel | Có | Đặt trực tiếp khi khởi tạo |
+| Tập lệnh `post-fs-data.sh` / `post-fs-data.d/` | Có | Thay thế bằng giai đoạn `late-load` |
+| Tải `system.prop` | Có | Có |
+| Gắn kết module Magic Mount | Có | Có |
+| Tập lệnh `post-mount.sh` / `post-mount.d/` | Có | Có |
+| Tập lệnh `service.sh` / `service.d/` | Có | Có |
+| Tập lệnh `boot-completed.sh` / `boot-completed.d/` | Có | Có |
+| Biến môi trường `KSU_LATE_LOAD` | Không đặt | Đặt thành `1` |
+| Cờ info kernel `0x4` | Không đặt | Đã đặt |
+
+### Thứ tự thực thi tập lệnh
+
+Trong chế độ late-load, thứ tự thực thi tập lệnh như sau:
+
+```txt
+ksud late-load:
+  1. Tải kernelsu.ko (nếu chưa được tải)
+  2. Giải nén tệp nhị phân, xử lý cập nhật mô-đun, tải quy tắc SELinux, khởi tạo tính năng
+  3. Thực thi tập lệnh late-load.d/ và tập lệnh late-load của mô-đun (chặn)
+  4. Tải system.prop (resetprop -n)
+  5. Thực thi gắn kết module Magic Mount
+  6. Thực thi tập lệnh post-mount.d/ và post-mount.sh của mô-đun (chặn)
+  7. Thực thi tập lệnh service.d/ và service.sh của mô-đun (không chặn)
+  8. Thực thi tập lệnh boot-completed.d/ và boot-completed.sh của mô-đun (không chặn)
+```
+
+### Tập lệnh dành riêng cho late-load
+
+Mô-đun có thể cung cấp tập lệnh `late-load.sh` chỉ chạy **trong chế độ late-load**, thay thế cho `post-fs-data.sh`. Tập lệnh này chạy trước khi gắn kết module, tương tự như `post-fs-data.sh` trong luồng tiêu chuẩn.
+
+Ngoài ra, các tập lệnh chung có thể được đặt trong `/data/adb/late-load.d/` để thực thi trong giai đoạn này.
+
+### Phát hiện chế độ late-load trong tập lệnh
+
+Mô-đun có thể phát hiện chế độ late-load bằng cách kiểm tra biến môi trường `KSU_LATE_LOAD`:
+
+```sh
+if [ "$KSU_LATE_LOAD" = "1" ]; then
+    # Đang chạy trong chế độ late-load
+    echo "Late-load mode detected"
+fi
+```
+
+Điều này cho phép các mô-đun điều chỉnh hành vi của mình, ví dụ bỏ qua các thao tác chỉ cần thiết trong quá trình khởi động sớm.
+
+## Tiện lợi quản lý module {#module-convenience}
+
+ShizuSU cung cấp nhiều tiện ích quản lý module:
+
+- **Sao lưu & khôi phục**：Sao lưu/khôi phục một chạm các module đã cài và danh sách trắng root.
+- **Cài đặt hàng loạt**：Cài nhiều zip module cùng lúc; lỗi đơn lẻ không làm dừng quy trình, các lỗi được thu thập và báo cáo khi kết thúc.
+- **Quản lý hàng loạt**：Bật, tắt, tắt tất cả, gỡ tất cả chỉ với một chạm.

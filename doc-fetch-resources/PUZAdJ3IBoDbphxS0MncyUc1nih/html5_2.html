@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="use-iframe" content="true">
+<meta name="html-box-height-mode" content="auto">
+<meta name="description" content="Root 隐藏三层矩阵：L1 特征层、L2 运行层控制、L3 钩子层隐藏，ShizuSU 另加 L0 stealth">
+<title>Root 隐藏三层矩阵</title>
+<style>
+html,body{margin:0;padding:0;background:#ffffff}
+.box{width:100%;max-width:820px;box-sizing:border-box;padding:8px}
+svg{display:block;width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="box">
+<svg viewBox="0 0 980 230" role="img" aria-label="Root 隐藏三层矩阵">
+  <text x="490" y="22" font-size="14" font-weight="bold" fill="#12222e" text-anchor="middle">Root 隐藏三层矩阵：Next 多的是「运行层控制」与「钩子层隐藏」</text>
+  <rect x="40" y="42" width="300" height="120" rx="10" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="56" y="66" font-size="12.5" font-weight="bold" fill="#334155">L1 特征层（两者都有）</text>
+  <text x="56" y="88" font-size="11.5" fill="#475569">· SUSFS 挂载/节点伪造</text>
+  <text x="56" y="104" font-size="11.5" fill="#475569">· App Profile 白名单</text>
+  <text x="56" y="120" font-size="11.5" fill="#475569">· uname/构建时间伪造页</text>
+  <text x="56" y="136" font-size="11.5" fill="#475569">· root 进程白名单/黑名单</text>
+  <text x="56" y="152" font-size="11.5" fill="#475569">（SukiSU 管理器内置 susfs 配置 UI）</text>
+  <rect x="370" y="42" width="300" height="120" rx="10" fill="#dcfce7" stroke="#15803d"/>
+  <text x="386" y="66" font-size="12.5" font-weight="bold" fill="#166534">L2 运行层控制（Next 独有 → 移植）</text>
+  <text x="386" y="88" font-size="11.5" fill="#166534">· susfsd 运行控制（0xDEADBEEF 通道）</text>
+  <text x="386" y="104" font-size="11.5" fill="#166534">· 查询 SuSFS 版本/启用特性（0x555e1/2/3）</text>
+  <text x="386" y="120" font-size="11.5" fill="#166534">· 系统层开关（按需开/关隐藏）</text>
+  <text x="386" y="136" font-size="11.5" fill="#166534">· 运行时状态可见、可脚本化</text>
+  <rect x="700" y="42" width="240" height="120" rx="10" fill="#fef3c7" stroke="#b45309"/>
+  <text x="716" y="66" font-size="12.5" font-weight="bold" fill="#92400e">L3 钩子层隐藏（Next 独有 → 移植）</text>
+  <text x="716" y="88" font-size="11.5" fill="#92400e">· KPROBES 钩子隐藏模式</text>
+  <text x="716" y="104" font-size="11.5" fill="#92400e">· syscall_hook_manager 脱钩</text>
+  <text x="716" y="120" font-size="11.5" fill="#92400e">· 审计进程看不到挂钩</text>
+  <text x="716" y="136" font-size="11.5" fill="#92400e">（风险最高：需与 KPM 排冲突）</text>
+  <text x="490" y="196" font-size="12.5" fill="#5b6b78" text-anchor="middle">ShizuSU 另加 L0：stealth 管理器隐身（第四章）——四层可叠加，App 检测面全部覆盖</text>
+</svg>
+</div>
+</body>
+</html>

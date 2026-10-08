@@ -1,0 +1,273 @@
+/* ============================================================
+   ShizuSU 文档站 · 品牌主题
+   视觉语言：蓝紫渐变 × 海洋青绿 × 玻璃拟态
+   素材：沃雅妮莎（青绿双马尾少女 IP）、水下梦幻 banner
+   ============================================================ */
+
+/* ---------- 品牌色板（浅色） ---------- */
+:root {
+  --sz-blue: #4f7cff;
+  --sz-violet: #8b5cf6;
+  --sz-teal: #2dd4bf;
+  --sz-grad: linear-gradient(120deg, #4f7cff 0%, #8b5cf6 55%, #a78bfa 100%);
+  --sz-grad-soft: linear-gradient(120deg, rgba(79, 124, 255, .12), rgba(139, 92, 246, .12));
+
+  /* VitePress 品牌变量 */
+  --vp-c-brand-1: #4f7cff;
+  --vp-c-brand-2: #7c5cf6;
+  --vp-c-brand-3: #8b5cf6;
+  --vp-c-brand-soft: rgba(122, 108, 255, .14);
+
+  --vp-c-bg: #f7f9ff;
+  --vp-c-bg-alt: #eef2fc;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f0f4ff;
+
+  --vp-c-text-1: #1c2333;
+  --vp-c-text-2: #4a5670;
+  --vp-c-text-3: #7a87a6;
+
+  --vp-c-divider: rgba(120, 130, 180, .16);
+
+  --vp-font-family-base: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: var(--sz-grad);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 30% 30%, rgba(79, 124, 255, .35), rgba(139, 92, 246, .25) 60%, transparent);
+  --vp-home-hero-image-filter: blur(0px);
+}
+
+/* ---------- 深色模式品牌色板 ---------- */
+.dark {
+  --sz-grad: linear-gradient(120deg, #6d9bff 0%, #9d7bff 55%, #c4a8ff 100%);
+  --sz-grad-soft: linear-gradient(120deg, rgba(109, 155, 255, .16), rgba(157, 123, 255, .16));
+
+  --vp-c-brand-1: #7c9cff;
+  --vp-c-brand-2: #9d7bff;
+  --vp-c-brand-3: #b79aff;
+  --vp-c-brand-soft: rgba(124, 140, 255, .16);
+
+  --vp-c-bg: #0a0f1e;
+  --vp-c-bg-alt: #0e1428;
+  --vp-c-bg-elv: #111834;
+  --vp-c-bg-soft: #101734;
+
+  --vp-c-text-1: #e8ecff;
+  --vp-c-text-2: #a9b4d8;
+  --vp-c-text-3: #7a87ae;
+
+  --vp-c-divider: rgba(140, 155, 220, .18);
+}
+
+/* ---------- 导航栏 ---------- */
+.VPNavBarTitle .logo {
+  border-radius: 8px;
+}
+.VPNavBarTitle .title {
+  font-weight: 700;
+  background: var(--sz-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.VPNavBar {
+  backdrop-filter: saturate(180%) blur(12px);
+  background: color-mix(in srgb, var(--vp-c-bg) 82%, transparent);
+}
+.VPNavBar.has-sidebar .content-body {
+  background: transparent !important;
+}
+
+/* ---------- 首页 Hero：banner 少女背景（完整头部，取景定位） ---------- */
+.VPHomeHero {
+  position: relative;
+}
+.VPHomeHero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--vp-c-bg) 88%, transparent) 0%,
+      color-mix(in srgb, var(--vp-c-bg) 62%, transparent) 26%,
+      color-mix(in srgb, var(--vp-c-bg) 18%, transparent) 52%,
+      transparent 68%),
+    linear-gradient(180deg,
+      transparent 0%,
+      transparent 48%,
+      color-mix(in srgb, var(--vp-c-bg) 74%, transparent) 100%),
+    url('/banner-top.jpg') center 14% / cover no-repeat;
+  z-index: 0;
+  pointer-events: none;
+}
+.VPHomeHero .container,
+.VPHomeHero .main {
+  position: relative;
+  z-index: 1;
+}
+.VPHomeHero .image {
+  position: absolute !important;
+  right: 20px !important;
+  bottom: 14px !important;
+  margin: 0 !important;
+}
+.VPHomeHero .image .image-container {
+  width: 150px !important;
+  height: 150px !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+.VPHomeHero .image .image-container img {
+  max-width: 150px !important;
+  max-height: 150px !important;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, .65);
+  box-shadow: 0 16px 40px -14px rgba(79, 124, 255, .5);
+  transition: transform .35s ease, box-shadow .35s ease;
+}
+.VPHomeHero .image .image-container img:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 22px 48px -14px rgba(139, 92, 246, .55);
+}
+.VPHomeHero .VPHero {
+  padding-top: 68px;
+  padding-bottom: 88px;
+  min-height: 420px;
+}
+.VPHomeHero .VPHero .container {
+  justify-content: flex-start;
+}
+.VPHomeHero .main {
+  text-align: left;
+  max-width: 48%;
+}
+.VPHomeHero .actions {
+  justify-content: flex-start;
+}
+.VPHomeHero .name {
+  background: var(--sz-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: .5px;
+}
+.VPHomeHero .text {
+  color: var(--vp-c-text-1);
+}
+.VPHomeHero .tagline {
+  color: var(--vp-c-text-2);
+}
+.VPHomeHero .image-bg {
+  background: radial-gradient(circle at 30% 30%, rgba(79, 124, 255, .30), rgba(45, 212, 191, .22) 60%, transparent);
+  border-radius: 50%;
+  filter: blur(0px);
+}
+
+/* ---------- 按钮 ---------- */
+.VPButton.brand {
+  border: none !important;
+  background: var(--sz-grad) !important;
+  box-shadow: 0 10px 26px -12px rgba(108, 98, 255, .55);
+  transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+}
+.VPButton.brand:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 14px 32px -12px rgba(108, 98, 255, .65);
+}
+.VPButton.alt {
+  border: 1px solid var(--vp-c-divider) !important;
+  background: color-mix(in srgb, var(--vp-c-bg-elv) 70%, transparent) !important;
+  backdrop-filter: blur(6px);
+  transition: transform .25s ease, border-color .25s ease;
+}
+.VPButton.alt:hover {
+  transform: translateY(-2px);
+  border-color: var(--vp-c-brand-1) !important;
+}
+
+/* ---------- 特性卡片：玻璃拟态 ---------- */
+.VPFeature {
+  border: 1px solid var(--vp-c-divider) !important;
+  border-radius: 18px !important;
+  background: color-mix(in srgb, var(--vp-c-bg-elv) 78%, transparent) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 34px -18px rgba(80, 90, 160, .25);
+  transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+  overflow: hidden;
+  position: relative;
+}
+.VPFeature::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--sz-grad);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.VPFeature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 22px 46px -20px rgba(108, 98, 255, .45);
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 45%, transparent) !important;
+}
+.VPFeature:hover::before {
+  opacity: 1;
+}
+.VPFeature .icon {
+  background: var(--sz-grad-soft) !important;
+  border-radius: 12px;
+}
+
+/* ---------- 文档正文链接/高亮 ---------- */
+.vp-doc a {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--vp-c-brand-1) 35%, transparent);
+  text-underline-offset: 3px;
+  transition: color .2s ease, text-decoration-color .2s ease;
+}
+.vp-doc a:hover {
+  color: var(--vp-c-brand-2);
+  text-decoration-color: currentColor;
+}
+.vp-doc blockquote {
+  border-left: 3px solid var(--vp-c-brand-2);
+  background: var(--sz-grad-soft);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 16px;
+}
+.vp-doc code {
+  color: var(--vp-c-brand-1);
+  background: color-mix(in srgb, var(--vp-c-brand-soft) 60%, transparent);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+/* ---------- 自定义徽标组件 ---------- */
+.sz-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--sz-grad);
+  box-shadow: 0 6px 16px -6px rgba(108, 98, 255, .6);
+}
+
+/* ---------- 页脚 ---------- */
+.VPFooter {
+  border-top: 1px solid var(--vp-c-divider);
+  margin-top: 48px;
+  background: var(--sz-grad-soft);
+}
+.VPFooter .copyright {
+  background: var(--sz-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
+}

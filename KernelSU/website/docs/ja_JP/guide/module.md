@@ -1,0 +1,430 @@
+# モジュールのガイド
+
+ShizuSU はシステムパーティションの整合性を維持しながら、システムディレクトリを変更する効果を実現するモジュール機構を提供します。この機構は一般に「システムレス」と呼ばれています。ShizuSU のモジュールシステムは **Magic Mount**（SukiSU-Ultra 由来）に基づいており、metamodule は不要でモジュールはすぐに動作します。
+
+ShizuSU のモジュール機構は、Magisk とほぼ同じです。Magisk のモジュール開発に慣れている方であれば、ShizuSU のモジュール開発も簡単でしょう。その場合は以下のモジュールの紹介は読み飛ばして、[Magisk との違い](difference-with-magisk.md)の内容だけ読めばOKです。
+
+::: info モジュールシステムは Magic Mount ベース
+ShizuSU のモジュールシステムは **Magic Mount**（SukiSU-Ultra 由来）に基づいており、metamodule をインストールしなくても `system` ディレクトリをマウントできます。`/system` ファイルを変更するモジュールもそのまま動作します。詳しくは[モジュールシステム：Magic Mount](metamodule.md)をご覧ください。
+:::
+
+## KPM カーネルモジュール {#kpm}
+
+KernelPatch Module（KPM）は、カーネルレベルで直接モジュールをロードすることを可能にし、高度なカーネル改変と拡張に適しています。ShizuSU は KPM を完全サポートしています（Apatch から移植）。KPM を利用するには、カーネルビルド時に `CONFIG_KPM=y` を有効にしてください。
+
+## WebUI
+
+ShizuSU modules support displaying interfaces and interacting with users. See the [WebUI documentation](module-webui.md) for more information.
+
+## モジュール設定
+
+ShizuSU は、モジュールが永続的または一時的なキー値設定を保存できる組み込みの設定システムを提供します。詳細については、[モジュール設定ドキュメント](module-config.md)を参照してください。
+
+## Busybox
+
+ShizuSU には、機能的に完全な Busybox バイナリ (SELinux の完全サポートを含む) が同梱されています。実行ファイルは `/data/adb/ksu/bin/busybox` に配置されています。ShizuSU の Busybox はランタイムに切り替え可能な「ASH スタンドアローンシェルモード」をサポートしています。このスタンドアロンモードとは、Busybox の `ash` シェルで実行する場合 `PATH` として設定されているものに関係なく、すべてのコマンドが Busybox 内のアプレットを直接使用するというものです。たとえば、`ls`、`rm`、`chmod` などのコマンドは、`PATH` にあるもの（Android の場合、デフォルトではそれぞれ `/system/bin/ls`, `/system/bin/rm`, `/system/bin/chmod`）ではなく、直接 Busybox 内部のアプレットを呼び出すことになります。これにより、スクリプトは常に予測可能な環境で実行され、どの Android バージョンで実行されていても常にコマンドを利用できます。Busybox を使用しないコマンドを強制的に実行するには、フルパスで実行ファイルを呼び出す必要があります。
+
+ShizuSU のコンテキストで実行されるすべてのシェルスクリプトは、Busybox の `ash` シェルでスタンドアロンモードが有効な状態で実行されます。サードパーティの開発者に関係するものとしては、すべてのブートスクリプトとモジュールのインストールスクリプトが含まれます。
+
+この「スタンドアロンモード」機能を ShizuSU 以外で使用したい場合、2つの方法で有効にできます：
+
+1. 環境変数 `ASH_STANDALONE` を `1` にする<br>例: `ASH_STANDALONE=1 /data/adb/ksu/bin/busybox sh <script>`
+2. コマンドラインのオプションで変更する:<br>`/data/adb/ksu/bin/busybox sh -o standalone <script>`
+
+環境変数が子プロセスに継承されるため、その後に実行されるすべての `sh` シェルもスタンドアロンモードで実行されるようにするにはオプション 1 が望ましい方法です（ShizuSU と ShizuSU Managerが内部的に使用しているのもこちらです）。
+
+::: tip Magisk との違い
+
+ShizuSU の Busybox は、Magisk プロジェクトから直接コンパイルされたバイナリファイルを使用するようになりました。Magisk と ShizuSU の Busybox スクリプトはまったく同じものなので、互換性の問題を心配する必要はありません！
+:::
+
+## ShizuSU モジュール
+
+ShizuSU モジュールは、`/data/adb/modules` に配置された以下の構造を持つフォルダーです：
+
+```txt
+/data/adb/modules
+├── .
+├── .
+|
+├── $MODID                  <--- フォルダの名前はモジュールの ID で付けます
+│   │
+│   │      *** モジュールの ID ***
+│   │
+│   ├── module.prop         <--- このファイルにモジュールのメタデータを保存します
+│   │
+│   │      *** メインコンテンツ ***
+│   │
+│   ├── system              <--- skip_mount が存在しない場合、このフォルダがマウントされます
+│   │   ├── ...
+│   │   ├── ...
+│   │   └── ...
+│   │
+│   │      *** ステータスフラグ ***
+│   │
+│   ├── skip_mount          <--- 存在する場合、ShizuSU はシステムフォルダをマウントしません
+│   ├── disable             <--- 存在する場合、モジュールは無効化されます
+│   ├── remove              <--- 存在する場合、次の再起動時にモジュールが削除されます
+│   │
+│   │      *** 任意のファイル ***
+│   │
+│   ├── post-fs-data.sh     <--- このスクリプトは post-fs-data で実行されます
+│   ├── service.sh          <--- このスクリプトは late_start サービスで実行されます
+|   ├── uninstall.sh        <--- このスクリプトは ShizuSU がモジュールを削除するときに実行されます
+│   ├── system.prop         <--- このファイルのプロパティは resetprop によってシステムプロパティとして読み込まれます
+│   ├── sepolicy.rule       <--- カスタム SEPolicy ルールを追加します
+│   ├── initrc/             <--- このディレクトリ内の .rc ファイルは起動時に init.rc に挿入されます
+│   │   ├── myservice.rc
+│   │   └── ...
+│   │
+│   │      *** 自動生成されるため、手動で作成または変更しないでください ***
+│   │
+│   ├── vendor              <--- $MODID/system/vendor へのシンボリックリンク
+│   ├── product             <--- $MODID/system/product へのシンボリックリンク
+│   ├── system_ext          <--- $MODID/system/system_ext へのシンボリックリンク
+│   │
+│   │      *** その他のファイル/フォルダの追加も可能です ***
+│   │
+│   ├── ...
+│   └── ...
+|
+├── another_module
+│   ├── .
+│   └── .
+├── .
+├── .
+```
+
+::: tip Magisk との違い
+ShizuSU は Zygisk をビルトインでサポートしていないため、モジュール内に Zygisk に関連するコンテンツは存在しません。 しかし、[ZygiskNext](https://github.com/Dr-TSNG/ZygiskNext) をインストールすれば Zygisk モジュールを使えます。その場合の Zygisk モジュールのコンテンツは Magisk と同じです。
+:::
+
+### module.prop
+
+module.prop はモジュールの設定ファイルです。ShizuSU ではこのファイルを含まないモジュールは、モジュールとして認識されません。このファイルの形式は以下の通りです：
+
+```txt
+id=<string>
+name=<string>
+version=<string>
+versionCode=<int>
+author=<string>
+description=<string>
+updateJson=<url> (optional)
+actionIcon=<path> (optional)
+webuiIcon=<path> (optional)
+```
+
+- `id` はこの正規表現に一致していなければいけません: `^[a-zA-Z][a-zA-Z0-9._-]+$`<br>
+  例: ✓ `a_module`, ✓ `a.module`, ✓ `module-101`, ✗ `a module`, ✗ `1_module`, ✗ `-a-module`<br>
+  これはモジュールの**ユニークな ID** です。公開後は変更しないでください。
+- `versionCode` は **integer** です。バージョンの比較に使います。
+- 他のものには**単一行** の文字であれば何でも使えます。
+- 改行文字は `UNIX (LF)` を使ってください。`Windows (CR+LF)` や `Macintosh (CR)` は使ってはいけません。
+- `actionIcon` と `webuiIcon` は、マネージャーアプリ内に表示される**モジュールアクションのショートカット**および**WebUI ショートカット**の既定アイコンとして使用される、任意指定の画像パスです。これらのパスは、モジュール ディレクトリを基準として指定する必要があります。例えば、`actionIcon=icon/icon.png` は `<MODDIR>/icon/icon.png` を指します。
+
+::: tip 動的説明
+`description` フィールドは、モジュール設定システムを使用して実行時に動的にオーバーライドできます。詳細は[モジュール説明のオーバーライド](module-config.md#overriding-module-description)を参照してください。
+:::
+
+### シェルスクリプト
+
+`post-fs-data.sh` と `service.sh` の違いについては、[ブートスクリプト](#boot-scripts)のセクションを読んでください。ほとんどのモジュール開発者にとって、ブートスクリプトを実行するだけなら `service.sh` で十分なはずです。
+
+モジュールのすべてのスクリプトでは、`MODDIR=${0%/*}`を使えばモジュールのベースディレクトリのパスを取得できます。スクリプト内でモジュールのパスをハードコードしないでください。
+
+::: tip Magisk との違い
+環境変数 `KSU` を使用すると、スクリプトが ShizuSU と Magisk どちらで実行されているかを判断できます。ShizuSU で実行されている場合、この値は `true` に設定されます。
+:::
+
+### `system` ディレクトリ
+
+このディレクトリの内容は、システムの起動後に **Magic Mount（bind mount）** を使用してシステムの /system パーティションの上にオーバーレイされます：
+
+1. システム内の対応するディレクトリにあるファイルと同名のファイルは、このディレクトリにあるファイルで上書きされます。
+2. システム内の対応するディレクトリにあるフォルダと同じ名前のフォルダは、このディレクトリにあるフォルダと統合されます。
+
+元のシステムディレクトリにあるファイルやフォルダを削除したい場合は、`customize.sh` 内で `REMOVE` という変数に削除操作を実行するディレクトリのリストを宣言してください。ShizuSU は Magic Mount によってこれらのファイルを自動的に隠します（/system パーティションは実際には変更されません）。例えば：
+
+```sh
+REMOVE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+```
+
+`/system/app/YouTube` と `/system/app/Bloatware` はモジュール有効化後に非表示になります。
+
+システム内のディレクトリを置き換えたい場合は、`customize.sh` ファイル内に `REPLACE` という変数を宣言し、その中に置換するディレクトリのリストを入れてください。ShizuSU は対象パスに空のディレクトリを bind mount し、ディレクトリ全体を置き換えます。例えば：
+
+REPLACE="
+/system/app/YouTube
+/system/app/Bloatware
+"
+
+`/system/app/YouTube` と `/system/app/Bloatware` はモジュール有効化後に空のディレクトリに置き換えられます。
+
+::: tip 公式 KernelSU との違い
+
+公式 KernelSU は OverlayFS（metamodule）メカニズムで systemless を実装しますが、ShizuSU は SukiSU-Ultra ベースで、Magisk と同じく **Magic Mount（bind mount）** を使用します。両者の最終的な目的は同じで、/system パーティションを物理的に変更することなく、/system のファイルを変更できます。ShizuSU は Magic Mount のみを使用し、2つのモジュールシステムは存在しません。詳しくは[モジュールシステム：Magic Mount](metamodule.md)をご覧ください。
+:::
+
+### system.prop
+
+このファイルは `build.prop` と同じ形式をとっています。各行は `[key]=[value]` で構成されます。
+
+### sepolicy.rule
+
+もしあなたのモジュールが追加の SEPolicy パッチを必要とする場合は、それらのルールをこのファイルに追加してください。このファイルの各行は、ポリシーステートメントとして扱われます。
+
+### initrc の挿入 {#initrc-injection}
+
+ShizuSUは、カスタムの Android Init RC ディレクティブをシステムの `init.rc` に挿入するメカニズムを提供します。これにより、モジュールはシステムパーティションを変更することなく、カスタムAndroidサービスの登録、プロパティトリガーの設定、またはその他のInit言語アクションの実行を行うことができます。
+
+起動中に、ShizuSUカーネルモジュールは `read()` および `fstat()` システムコールをインターセプトします。Android initプロセスが `/system/etc/init/hw/init.rc` を読み取るときに、ShizuSUはカスタムRCコンテンツをファイルの末尾に透過的に追加します。initプロセスは、元の init.rc コンテンツと同じように、これらの挿入されたディレクティブを解析します。
+
+ユーザースペース側では、ksudが有効になっているモジュールからのすべての `.rc` ファイルを連結して1つの `modules.rc` ファイルを作成し、`/metadata` パーティションに保存します。このファイルは、モジュールの状態（インストール、有効化、無効化、アンインストールなど）が変更されるたびに自動的に再生成されます。
+
+#### モジュール initrc ファイル
+
+モジュールディレクトリに `initrc/` サブディレクトリを作成し、そこに `.rc` ファイルを配置します。
+
+```txt
+/data/adb/modules/<MODID>/
+├── initrc/
+│   ├── myservice.rc
+│   └── another.rc
+└── ...
+```
+
+::: tip
+- ファイルの拡張子は `.rc` である必要があります。
+- モジュールが有効になっている限り、`initrc/` ディレクトリ内のすべての `.rc` ファイルが含まれます（実行権限は必要ありません）。
+- ファイルはディレクトリ内で**ファイル名のアルファベット順**に処理され、モジュールは**モジュールIDのアルファベット順**に処理されます。
+:::
+
+#### 一般的な initrc ファイル
+
+モジュールレベルのRCファイルに加えて、グローバルディレクトリに `.rc` ファイルを配置することもできます。
+
+```txt
+/data/adb/initrc.d/
+├── myservice.rc
+└── another.rc
+```
+
+::: warning 一般的な initrc ファイルには実行権限が必要です
+モジュールの `initrc/` ディレクトリとは異なり、`/data/adb/initrc.d/` 内のファイルを含めるには**実行権限が必要**です。実行不可能な `.rc` ファイルは静かにスキップされます。
+:::
+
+一般的な `initrc.d/` ファイルは、モジュールのRCファイルよりも前に処理されます。
+
+#### 例
+
+カスタムAndroidサービスを登録する `.rc` ファイルの例を次に示します。
+
+```rc
+service myservice /data/adb/modules/mymodule/bin/myservice
+    user root
+    group root
+    disabled
+    seclabel u:r:ksu:s0
+
+on property:sys.boot_completed=1
+    start myservice
+```
+
+このファイルが `/data/adb/modules/mymodule/initrc/myservice.rc` に配置されている場合、起動時に `myservice` という名前のサービスを登録し、`sys.boot_completed=1` に達したときにサービスを開始します。
+
+#### 手動更新
+
+次のコマンドを使用して、`modules.rc` の再生成を手動でトリガーできます（変更は次回の起動時に有効になります）。
+
+```sh
+ksud initrc refresh
+```
+
+::: tip
+- initrc の挿入は、起動プロセスの非常に早い段階（init が init.rc を読み取るとき）で、post-fs-data およびモジュールスクリプトが実行される**前**に行われます。
+- 挿入されたRCコンテンツは、元の init.rc の一部として init によって扱われ、すべての Android Init 言語構文（サービス定義、トリガー、プロパティ設定など）をサポートします。
+- initrc の挿入は、システムコールフックがインストールされないため、**late-load モード**では**使用できません**。
+- ksudでイメージにパッチを当てる際に `--no-custom-rc` パラメータを渡すことで、モジュールRCの挿入を無効にすることができます。
+:::
+
+## モジュールのインストーラー
+
+ShizuSU モジュールインストーラーは、ShizuSU Manager アプリでインストールできる、ZIP ファイルにパッケージされた ShizuSU モジュールです。最もシンプルな ShizuSU モジュールインストーラーは、ShizuSU モジュールを ZIP ファイルとしてパックしただけのものです。
+
+```txt
+module.zip
+│
+├── customize.sh                       <--- (任意、詳細は後述)
+│                                           このスクリプトは update-binary から読み込まれます
+├── ...
+├── ...  /* 残りのモジュールのファイル */
+│
+```
+
+::: warning 警告
+ShizuSU モジュールは、カスタムリカバリーからのインストールには非対応です！
+:::
+
+### カスタマイズ
+
+モジュールのインストールプロセスをカスタマイズする必要がある場合、`customize.sh` という名前のスクリプトを作成してください。このスクリプトは、すべてのファイルが抽出され、デフォルトのパーミッションと secontext が適用された後、モジュールインストーラースクリプトによって読み込み (実行ではなく) されます。これは、モジュールがデバイスの ABI に基づいて追加設定を必要とする場合や、モジュールファイルの一部に特別なパーミッション/コンテキストを設定する必要がある場合に、非常に便利です。
+
+インストールプロセスを完全に制御しカスタマイズしたい場合は、`customize.sh` で `SKIPUNZIP=1` と宣言すればデフォルトのインストールステップをすべてスキップできます。そうすることで、`customize.sh` が責任をもってすべてをインストールするようになります。
+
+`customize.sh`スクリプトは、ShizuSU の Busybox `ash` シェルで、「スタンドアロンモード」を有効にして実行します。以下の変数と関数が利用可能です：
+
+#### 変数
+
+- `KSU` (bool): スクリプトが ShizuSU 環境で実行されていることを示すための変数で、この変数の値は常に true になります。ShizuSU と Magisk を区別するために使用できます。
+- `KSU_VER` (string): 現在インストールされている ShizuSU のバージョン文字列 (例: `v0.4.0`)
+- `KSU_VER_CODE` (int): ユーザー空間に現在インストールされているShizuSUのバージョンコード (例: `10672`)
+- `KSU_KERNEL_VER_CODE` (int): 現在インストールされている ShizuSU のカーネル空間でのバージョンコード（例：`10672`）
+- `BOOTMODE` (bool): ShizuSU では常に `true` 
+- `MODPATH` (path): モジュールファイルがインストールされるパス
+- `TMPDIR` (path): ファイルを一時的に保存しておく場所
+- `ZIPFILE` (path): あなたのモジュールのインストールZIP
+- `ARCH` (string): デバイスの CPU アーキテクチャ。値は `arm`、`arm64`、`x86`、`x64` のいずれか
+- `IS64BIT` (bool): `ARCH` が `arm64` または `x64` のときは `true` 
+- `API` (int): 端末の API レベル・Android のバージョン（例：Android 6.0 なら`23`）
+- `KSU_UAPI_VER` (int): ShizuSU ユーザー空間 (ksud) の UAPI バージョン（例：`2`）。カーネルドライバーに破壊的変更がある場合にこのバージョンが更新されます。モジュールはこの値で互換性を確認できます。
+- `KSU_RUNTIME_MODE` (string): ShizuSU の現在の実行モード。値は `built-in`（GKI モード、カーネルに組み込み）、`lkm`（起動時にカーネルモジュールとして読み込み）、または `late-load`（起動後にカーネルモジュールとして読み込み）のいずれかです。
+- `KSU_LATE_LOAD` (int?): ShizuSU が起動後に遅延読み込みされた場合、この変数の値は `1` になります。それ以外の場合、この変数は設定されません。
+
+::: warning 警告
+ShizuSU では、MAGISK_VER_CODE は常に25200、MAGISK_VER は常にv25.2です。この2つの変数で ShizuSU 上で動作しているかどうかを判断するのはやめてください。
+:::
+
+#### 機能
+
+```txt
+ui_print <msg>
+    コンソールに <msg> を表示します
+    カスタムリカバリーのコンソールでは表示されないため、「echo」の使用は避けてください
+
+abort <msg>
+    エラーメッセージ<msg>をコンソールに出力し、インストールを終了させます
+    終了時のクリーンアップがスキップされてしまうため、「exit」の使用は避けてください
+
+set_perm <target> <owner> <group> <permission> [context]
+    [context] が設定されていない場合、デフォルトは "u:object_r:system_file:s0" です。
+    この機能は、次のコマンドの略記です：
+       chown owner.group target
+       chmod permission target
+       chcon context target
+
+set_perm_recursive <directory> <owner> <group> <dirpermission> <filepermission> [context]
+    [context] が設定されていない場合、デフォルトは "u:object_r:system_file:s0" です。
+    <directory> 内のすべてのファイルに対しては以下が実行されます:
+       set_perm file owner group filepermission context
+    <directory> 内のすべてのディレクトリ（自身を含む）に対しては以下が実行されます:
+       set_perm dir owner group dirpermission context
+```
+
+## ブートスクリプト
+
+ShizuSU では、スクリプトは実行モードによって post-fs-data モードと late_start サービスモードの2種類に分けられます：
+
+- post-fs-data モード
+  - 同期処理です。実行が終わるか、10秒が経過するまでブートプロセスが一時停止されます。
+  - スクリプトはモジュールがマウントされる前に実行されます。モジュール開発者はモジュールがマウントされる前に、動的にモジュールを調整できます。
+  - このステージは Zygote が始まる前に起こるので、Android のほぼすべての処理の前に割り込めます
+  - **警告:** `setprop` を使うとブートプロセスのデッドロックを引き起こします! `resetprop -n <prop_name> <prop_value>` を使ってください。
+  - **本当に必要な場合だけこのモードでコマンド実行してください**
+- late_start サービスモード
+  - 非同期処理です。スクリプトは、起動プロセスの残りの部分と並行して実行されます。
+  - **ほとんどのスクリプトにはこちらがおすすめです**
+
+ShizuSU では、起動スクリプトは保存場所によって一般スクリプトとモジュールスクリプトの2種類に分けられます：
+
+- 一般スクリプト
+  - `/data/adb/post-fs-data.d` か `/data/adb/service.d` に配置されます
+  - スクリプトが実行可能な状態に設定されている場合にのみ実行されます (`chmod +x script.sh`)
+  - `post-fs-data.d` のスクリプトは post-fs-data モードで実行され、`service.d` のスクリプトは late_start サービスモードで実行されます
+  - モジュールはインストール時に一般スクリプトを追加するべきではありません
+- モジュールスクリプト
+  - モジュール独自のフォルダに配置されます
+  - モジュールが有効な場合のみ実行されます
+  - `post-fs-data.sh` は post-fs-data モードで実行され、`service.sh` は late_start サービスモードで実行されます
+
+すべてのブートスクリプトは、ShizuSU の Busybox `ash` シェルで「スタンドアロンモード」を有効にした状態で実行されます。
+
+## Late-load モード {#late-load-mode}
+
+上記の標準起動フローに加えて、ShizuSU は LKM（ローダブルカーネルモジュール）シナリオ向けの **late-load モード** をサポートしています。このモードでは、ShizuSU カーネルモジュールは init プロセス中ではなく、**システムが完全に起動した後** にロードされます。
+
+### late-load はいつ発生するか？
+
+`ksud late-load` コマンドを実行することでトリガーされます。このコマンドは：
+
+1. 現在の KMI バージョンを検出し、組み込みアセットから対応する `kernelsu.ko` をロードします。
+2. 通常起動時に行われるモジュールの初期化（SELinux ルール、許可リスト、機能など）を実行します。
+
+システムが既に完全に稼働しているため、起動時の特定のメカニズムは利用不可または不要です。
+
+### 標準起動との違い
+
+| 動作 | 標準起動 | Late-load モード |
+|------|:---:|:---:|
+| カーネルモジュールが init (PID 1) によりロード | はい | いいえ（起動後にロード） |
+| initrc 挿入 (モジュールの `.rc` ファイルを init.rc に挿入) | はい | 利用不可 |
+| ksud の kprobe フック (execve/read/fstat/input) | はい | スキップ |
+| セーフモード検出（音量キー） | はい | 常に無効 |
+| 起動ログのキャプチャ (logcat/dmesg) | はい | スキップ |
+| Magisk 共存チェック | はい | スキップ |
+| `post-fs-data` イベントのカーネル通知 | はい | スキップ |
+| `boot-completed` イベントのカーネル通知 | はい | 初期化時に直接設定 |
+| `post-fs-data.sh` / `post-fs-data.d/` スクリプト | はい | `late-load` ステージで代替 |
+| `system.prop` の読み込み | はい | はい |
+| Magic Mount モジュールマウント | はい | はい |
+| `post-mount.sh` / `post-mount.d/` スクリプト | はい | はい |
+| `service.sh` / `service.d/` スクリプト | はい | はい |
+| `boot-completed.sh` / `boot-completed.d/` スクリプト | はい | はい |
+| 環境変数 `KSU_LATE_LOAD` | 未設定 | `1` に設定 |
+| カーネル info フラグ `0x4` | 未設定 | 設定済み |
+
+### スクリプト実行順序
+
+late-load モードでのスクリプト実行順序は以下の通りです：
+
+```txt
+ksud late-load:
+  1. kernelsu.ko をロード（まだロードされていない場合）
+  2. バイナリの展開、モジュール更新の処理、SELinux ルールの読み込み、機能の初期化
+  3. late-load.d/ の汎用スクリプトとモジュールの late-load スクリプトを実行（ブロッキング）
+  4. system.prop を読み込み (resetprop -n)
+  5. Magic Mount モジュールマウントを実行
+  6. post-mount.d/ の汎用スクリプトとモジュールの post-mount.sh を実行（ブロッキング）
+  7. service.d/ の汎用スクリプトとモジュールの service.sh を実行（ノンブロッキング）
+  8. boot-completed.d/ の汎用スクリプトとモジュールの boot-completed.sh を実行（ノンブロッキング）
+```
+
+### Late-load 専用スクリプト
+
+モジュールは `late-load.sh` スクリプトを提供でき、このスクリプトは **late-load モードでのみ** 実行され、`post-fs-data.sh` の代替として機能します。このスクリプトはモジュールマウント前に実行され、標準フローの `post-fs-data.sh` と同様のタイミングです。
+
+また、汎用スクリプトを `/data/adb/late-load.d/` に配置して、このステージで実行することもできます。
+
+### スクリプト内で late-load モードを検出する
+
+モジュールは環境変数 `KSU_LATE_LOAD` をチェックすることで late-load モードかどうかを検出できます：
+
+```sh
+if [ "$KSU_LATE_LOAD" = "1" ]; then
+    # late-load モードで実行中
+    echo "Late-load mode detected"
+fi
+```
+
+これにより、モジュールは自身の動作を調整できます。例えば、早期起動時にのみ必要な操作をスキップできます。
+
+## モジュール管理の利便性 {#module-convenience}
+
+ShizuSU はモジュール管理の利便機能を多数提供します：
+
+- **バックアップと復元**：インストール済みモジュールと root ホワイトリストをワンタップでバックアップ/復元。
+- **バッチインストール**：複数のモジュール zip を一度にインストール。個別の失敗は中断せず収集され、最後に報告されます。
+- **バッチ管理**：ワンタップでの有効化、無効化、すべて無効化、すべてアンインストールに対応。

@@ -1,0 +1,26 @@
+# Perbedaan dengan Magisk
+
+Meskipun ada banyak kesamaan antara modul ShizuSU dan modul Magisk, pasti ada beberapa perbedaan karena mekanisme implementasinya yang sangat berbeda. Jika Anda ingin modul Anda berjalan di Magisk dan ShizuSU, Anda harus memahami perbedaan ini.
+
+## Kesamaan
+
+- Format file modul: keduanya menggunakan format zip untuk mengatur modul, dan format modulnya hampir sama
+- Direktori pemasangan modul: keduanya terletak di `/data/adb/modules`
+- Tanpa sistem: keduanya mendukung modifikasi / sistem dengan cara tanpa sistem melalui modul
+- post-fs-data.sh: waktu eksekusi dan semantiknya persis sama
+- service.sh: waktu eksekusi dan semantiknya persis sama
+- system.prop: sepenuhnya sama
+- sepolicy.rule: sama persis
+- BusyBox: skrip dijalankan di BusyBox dengan "mode mandiri" diaktifkan di kedua kasus
+
+## Perbedaan
+
+Sebelum memahami perbedaannya, Anda perlu mengetahui cara membedakan apakah modul Anda berjalan di ShizuSU atau Magisk. Anda dapat menggunakan variabel lingkungan `KSU` untuk membedakannya di semua tempat di mana Anda dapat menjalankan skrip modul (`customize.sh`, `post-fs-data.sh`, `service.sh`). Di ShizuSU, variabel lingkungan ini akan disetel ke `true`.
+
+Berikut beberapa perbedaannya:
+
+- Modul ShizuSU tidak dapat diinstal dalam mode Pemulihan.
+- Modul ShizuSU tidak memiliki dukungan bawaan untuk Zygisk (tetapi Anda dapat menggunakan modul Zygisk melalui [ZygiskNext](https://github.com/Dr-TSNG/ZygiskNext).
+- Metode untuk mengganti atau menghapus file dalam modul ShizuSU sama dengan Magisk: gunakan variabel `REMOVE` dan `REPLACE` di `customize.sh` untuk menghapus file atau mengganti direktori (lihat [Panduan Modul](module.md)).
+- Direktori untuk BusyBox berbeda. BusyBox bawaan di ShizuSU terletak di `/data/adb/ksu/bin/busybox`, sedangkan di Magisk terletak di `/data/adb/magisk/busybox`. **Perhatikan bahwa ini adalah perilaku internal ShizuSU dan dapat berubah di masa mendatang!**
+- ShizuSU tidak mendukung file `.replace`; namun, ShizuSU mendukung variabel `REMOVE` dan `REPLACE` untuk menghapus atau mengganti file dan folder.
