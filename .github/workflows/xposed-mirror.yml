@@ -1,0 +1,47 @@
+name: xposed-mirror
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch modules.json
+        run: |
+          set -e
+          ok=0
+          for u in \
+            "https://modules.lsposed.org/modules.json" \
+            "https://modules-blogcdn.lsposed.org/modules.json"; do
+            echo "== trying $u"
+            if curl -fsSL --max-time 60 -A "ShizuSU-mirror/1.0" "$u" -o docs/xposed/modules.json; then
+              ok=1
+              break
+            fi
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::all upstream mirrors failed"
+            exit 1
+          fi
+          # basic sanity: must be a JSON array
+          python3 -c "import json,sys; d=json.load(open('docs/xposed/modules.json')); assert isinstance(d,list); print('entries:', len(d))"
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/xposed/modules.json
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore(xposed-mirror): refresh modules.json [skip ci]"
+            git push
+          fi
