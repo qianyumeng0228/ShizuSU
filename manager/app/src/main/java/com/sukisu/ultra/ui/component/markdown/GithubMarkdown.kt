@@ -61,6 +61,7 @@ fun GithubMarkdown(
     isMarkdown: Boolean = false,
     onLoadingChange: (Boolean) -> Unit = {},
     containerColor: androidx.compose.ui.graphics.Color? = null,
+    baseUrl: String = "",
 ) {
     val density = LocalDensity.current
     val systemDensity = LocalResources.current.displayMetrics.density
@@ -92,9 +93,9 @@ fun GithubMarkdown(
     }
     val parser = remember(extensions) { Parser.builder().extensions(extensions).build() }
     val renderer = remember(extensions) { HtmlRenderer.builder().extensions(extensions).build() }
-    val rendered = remember(content, isMarkdown) {
+    val rendered = remember(content, isMarkdown, baseUrl) {
         var html = if (isMarkdown) renderer.render(parser.parse(content)) else content
-        // [ShizuSU] 图片 URL 代理：raw.githubusercontent.com → ghproxy（设备直连 raw 不通）
+        // [ShizuSU] 绝对 URL 代理：raw/jsdelivr → ghproxy（设备直连不通）
         html = html.replace(
             Regex("src=\"https://raw\\.githubusercontent\\.com/([^\"]+)\""),
             "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$1\""
@@ -103,6 +104,16 @@ fun GithubMarkdown(
             Regex("src=\"https://cdn\\.jsdelivr\\.net/gh/([^\"]+)\""),
             "src=\"https://ghproxy.net/https://cdn.jsdelivr.net/gh/$1\""
         )
+        // [ShizuSU] 相对路径图片 → 绝对 ghproxy URL（baseUrl = 模块 raw 根目录）
+        if (baseUrl.isNotEmpty()) {
+            html = html.replace(
+                Regex("src=\"(?!https?://)([^\"]+)\"")
+            ) { match ->
+                val rel = match.groupValues[1].trimStart('/')
+                val abs = "$baseUrl$rel"
+                "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$abs\""
+            }
+        }
         html
     }
     val styleContent = """

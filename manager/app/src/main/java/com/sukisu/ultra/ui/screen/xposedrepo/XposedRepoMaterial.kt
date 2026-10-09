@@ -346,6 +346,7 @@ private fun ReadmeTab(mod: XposedModule, extra: RepoExtra?, openUrl: (String) ->
                     com.sukisu.ultra.ui.component.markdown.GithubMarkdown(
                         content = readme,
                         isMarkdown = true,
+                        baseUrl = "Xposed-Modules-Repo/${mod.name}/main/",
                     )
                 }
                 extra != null -> Text("README 加载失败", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -215,6 +215,7 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                                 com.sukisu.ultra.ui.component.markdown.GithubMarkdown(
                                     content = readme,
                                     isMarkdown = true,
+                                    baseUrl = "Xposed-Modules-Repo/${mod.name}/main/",
                                 )
                             }
                             extra != null -> Text("README 加载失败", color = colorScheme.onSurfaceVariantSummary)
