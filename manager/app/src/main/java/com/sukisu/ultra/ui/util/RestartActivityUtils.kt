@@ -47,7 +47,7 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_CHANGED, Uri.parse("package:${context.packageName}")))
     }
 
-    // [ShizuSU] 终解：root 权限精准改 launcher db intent + 清 icon 缓存 + force-stop
+    // [ShizuSU] 终解：先杀 launcher（释放 db 锁）→ chmod → UPDATE → 恢复权限
     runCatching {
         val launcherPkg = pm.resolveActivity(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
@@ -55,6 +55,9 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
             val pkg = context.packageName
             val dbPath = "/data/user_de/0/$launcherPkg/databases/launcher4x6.db"
+
+            // 0. 先 force-stop launcher（释放 db 锁——否则 openDatabase 死锁等待）
+            suExec("am force-stop $launcherPkg")
 
             // 1. 放开目录 traverse + db 写权限
             suExec("chmod 755 /data/user_de/0 /data/user_de/0/$launcherPkg /data/user_de/0/$launcherPkg/databases")
@@ -79,10 +82,9 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
                 Log.e(TAG, "DB UPDATE FAILED: ${e.message}")
             }
 
-            // 3. 恢复权限 + force-stop launcher
+            // 3. 恢复权限（launcher 重启读 db 时需要）
             suExec("chmod 600 $dbPath")
             suExec("chmod 700 /data/user_de/0/$launcherPkg/databases /data/user_de/0/$launcherPkg")
-            suExec("am force-stop $launcherPkg")
         }
     }
 }
