@@ -26,24 +26,30 @@ data class RepoExtra(
 
 object XposedRepoDetailFetcher {
     internal val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
     private fun log(msg: String) = android.util.Log.e("XposedDetail", msg)
 
-    /** Try raw direct → jsdelivr → ghproxy, return body string or null */
+    /** Try multiple mirrors, return body string or null */
     private fun fetchRaw(pkg: String, file: String): String? {
+        val base = "Xposed-Modules-Repo/$pkg/main/$file"
         val candidates = listOf(
-            "https://raw.githubusercontent.com/Xposed-Modules-Repo/$pkg/main/$file",
+            "https://raw.githubusercontent.com/$base",
             "https://cdn.jsdelivr.net/gh/Xposed-Modules-Repo/$pkg@main/$file",
-            "https://ghproxy.net/https://raw.githubusercontent.com/Xposed-Modules-Repo/$pkg/main/$file",
+            "https://ghproxy.net/https://raw.githubusercontent.com/$base",
+            "https://gh-proxy.com/https://raw.githubusercontent.com/$base",
+            "https://ghfast.top/https://raw.githubusercontent.com/$base",
+            "https://mirror.ghproxy.com/https://raw.githubusercontent.com/$base",
+            "https://github.moeyy.xyz/https://raw.githubusercontent.com/$base",
+            "https://raw.gitmirror.com/$base",
         )
         for (url in candidates) {
             runCatching {
                 val req = Request.Builder().url(url).build()
                 client.newCall(req).execute().use { resp ->
-                    log("raw $file -> ${resp.code}")
+                    log("raw $file -> ${resp.code} ($url)")
                     if (resp.isSuccessful) return resp.body.string()
                 }
             }.onFailure { log("raw $url FAIL: ${it.message}") }
