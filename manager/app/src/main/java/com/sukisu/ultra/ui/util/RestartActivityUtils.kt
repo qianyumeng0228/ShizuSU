@@ -24,8 +24,18 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         PackageManager.DONT_KILL_APP
     )
 
-    // [ShizuSU] 发系统广播通知 launcher 重读图标（MIUI/原生通用）
+    // [ShizuSU] 发系统广播通知 launcher 重读图标
     runCatching {
         context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_CHANGED, Uri.parse("package:${context.packageName}")))
+    }
+
+    // [ShizuSU] 终解：root 权限 force-stop launcher 进程 → 桌面自动重建 → 图标即时刷新
+    runCatching {
+        val launcherPkg = pm.resolveActivity(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+        )?.activityInfo?.packageName
+        if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $launcherPkg")).waitFor()
+        }
     }
 }
