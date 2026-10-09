@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import com.sukisu.ultra.ui.MainActivity
 
@@ -29,17 +30,32 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_CHANGED, Uri.parse("package:${context.packageName}")))
     }
 
-    // [ShizuSU] 终解：root 权限 force-stop launcher + 清图标缓存 → 桌面自动重建 → 图标即时刷新
+    // [ShizuSU] 终解：root 权限精准清 launcher 数据库 icon 字段 + force-stop
     runCatching {
         val launcherPkg = pm.resolveActivity(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         )?.activityInfo?.packageName
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $launcherPkg")).waitFor()
-            // 清图标缓存（MIUI launcher 持久缓存，force-stop 不失效）
+            val pkg = context.packageName
+            // 1. 临时放开目录+db 权限
             Runtime.getRuntime().exec(arrayOf("su", "-c",
-                "rm -rf /data/user_de/0/$launcherPkg/cache/*icon* /data/user_de/0/$launcherPkg/cache/*Icon* " +
-                "/data/data/$launcherPkg/cache/*icon* /data/data/$launcherPkg/cache/*Icon* 2>/dev/null"
+                "chmod 755 /data/user_de/0/$launcherPkg /data/user_de/0/$launcherPkg/databases 2>/dev/null && " +
+                "chmod 666 /data/user_de/0/$launcherPkg/databases/launcher4x6.db 2>/dev/null"
+            )).waitFor()
+            // 2. 清自身条目 icon 字段（favorites 表）
+            runCatching {
+                val db = SQLiteDatabase.openDatabase(
+                    "/data/user_de/0/$launcherPkg/databases/launcher4x6.db",
+                    null, SQLiteDatabase.OPEN_READWRITE
+                )
+                db.execSQL("UPDATE favorites SET iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'")
+                db.close()
+            }
+            // 3. 恢复权限 + force-stop launcher
+            Runtime.getRuntime().exec(arrayOf("su", "-c",
+                "chmod 600 /data/user_de/0/$launcherPkg/databases/launcher4x6.db 2>/dev/null && " +
+                "chmod 700 /data/user_de/0/$launcherPkg/databases /data/user_de/0/$launcherPkg 2>/dev/null && " +
+                "am force-stop $launcherPkg"
             )).waitFor()
         }
     }
