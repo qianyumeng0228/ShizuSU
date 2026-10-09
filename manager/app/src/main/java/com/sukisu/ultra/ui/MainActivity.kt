@@ -148,15 +148,6 @@ class MainActivity : ComponentActivity() {
         val isManager = Natives.isManager
         if (isManager && Natives.kernelUAPIVersion == Natives.managerUAPIVersion) install()
 
-        // [ShizuSU] 启动时按持久化状态执行一次图标刷新（幂等——补 launcher db 刷新链）
-        Thread {
-            runCatching {
-                val prefs = getSharedPreferences("settings", MODE_PRIVATE)
-                val useAlt = prefs.getBoolean("alternative_icon", false)
-                com.sukisu.ultra.ui.util.toggleLauncherIcon(this, useAlt)
-            }
-        }
-
         // [ShizuSU] 兜底激活：isManager=false 时写 .manager 文件 + 启动 ksud
         if (!isManager) {
             Thread {

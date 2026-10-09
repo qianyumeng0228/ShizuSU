@@ -172,7 +172,20 @@ class SettingsViewModel(
     fun setAlternativeIcon(context: Context, enabled: Boolean) {
         repo.alternativeIcon = enabled
         _uiState.update { it.copy(alternativeIcon = enabled) }
-        com.sukisu.ultra.ui.util.toggleLauncherIcon(context, enabled)
+        // 组件互换（系统自然重读图标——不主动广播/force-stop/db 修改）
+        val pm = context.packageManager
+        val main = android.content.ComponentName(context, com.sukisu.ultra.ui.MainActivity::class.java.name)
+        val alias = android.content.ComponentName(context, "${com.sukisu.ultra.ui.MainActivity::class.java.name}Alias")
+        pm.setComponentEnabledSetting(
+            if (enabled) alias else main,
+            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            android.content.pm.PackageManager.DONT_KILL_APP
+        )
+        pm.setComponentEnabledSetting(
+            if (enabled) main else alias,
+            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            android.content.pm.PackageManager.DONT_KILL_APP
+        )
     }
 
     fun setThemeMode(mode: Int) {
