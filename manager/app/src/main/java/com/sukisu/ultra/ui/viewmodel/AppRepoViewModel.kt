@@ -27,7 +27,11 @@ class AppRepoViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "AppRepoVm"
-        private const val URL = "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU-Apps/main/apps.json"
+        private val URLS = listOf(
+            "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU-Apps/main/apps.json",
+            "https://cdn.jsdelivr.net/gh/qianyumeng0228/ShizuSU-Apps@main/apps.json",
+            "https://ghproxy.net/https://raw.githubusercontent.com/qianyumeng0228/ShizuSU-Apps/main/apps.json",
+        )
     }
 
     init { refresh() }
@@ -46,41 +50,45 @@ class AppRepoViewModel : ViewModel() {
     }
 
     private fun fetch(): Result<List<AppEntry>> {
-        return try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .build()
-            val req = Request.Builder().url(URL)
-                .header("User-Agent", "ShizuSU-Manager/1.0")
-                .build()
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) {
-                    return Result.failure(RuntimeException("HTTP ${resp.code}"))
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+        var lastErr: Exception? = null
+        for (url in URLS) {
+            try {
+                val req = Request.Builder().url(url)
+                    .header("User-Agent", "ShizuSU-Manager/1.0")
+                    .build()
+                client.newCall(req).execute().use { resp ->
+                    Log.e(TAG, "apps.json $url -> ${resp.code}")
+                    if (!resp.isSuccessful) return@use
+                    val body = resp.body?.string().orEmpty()
+                    val root = JSONObject(body)
+                    val arr = root.getJSONArray("apps")
+                    val out = ArrayList<AppEntry>(arr.length())
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        out += AppEntry(
+                            id = o.optString("id", ""),
+                            name = o.optString("name", ""),
+                            pkg = o.optString("package", ""),
+                            versionName = o.optString("versionName", ""),
+                            versionCode = o.optLong("versionCode", 0L),
+                            summary = o.optString("summary", ""),
+                            author = o.optString("author", ""),
+                            downloadUrl = o.optString("downloadUrl", ""),
+                            updatedAt = o.optLong("updatedAt", 0L),
+                        )
+                    }
+                    out.sortByDescending { it.updatedAt }
+                    return Result.success(out)
                 }
-                val body = resp.body?.string().orEmpty()
-                val root = JSONObject(body)
-                val arr = root.getJSONArray("apps")
-                val out = ArrayList<AppEntry>(arr.length())
-                for (i in 0 until arr.length()) {
-                    val o = arr.getJSONObject(i)
-                    out += AppEntry(
-                        id = o.optString("id", ""),
-                        name = o.optString("name", ""),
-                        pkg = o.optString("package", ""),
-                        versionName = o.optString("versionName", ""),
-                        versionCode = o.optLong("versionCode", 0L),
-                        summary = o.optString("summary", ""),
-                        author = o.optString("author", ""),
-                        downloadUrl = o.optString("downloadUrl", ""),
-                        updatedAt = o.optLong("updatedAt", 0L),
-                    )
-                }
-                out.sortByDescending { it.updatedAt }
-                Result.success(out)
+            } catch (e: Exception) {
+                lastErr = e
+                Log.e(TAG, "apps.json $url FAIL: ${e.message}")
             }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
+        return Result.failure(lastErr ?: RuntimeException("all mirrors failed"))
     }
 }

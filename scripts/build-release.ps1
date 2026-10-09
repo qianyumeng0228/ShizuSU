@@ -48,8 +48,9 @@ try {
         } finally { Pop-Location }
     }
 
-    $srcApk = "S:\manager\app\build\outputs\apk\release\ShizuSU_v1.0.6_37307-release.apk"
-    if (-not (Test-Path $srcApk)) { throw "src apk missing: $srcApk" }
+    $srcApk = Get-ChildItem "S:\manager\app\build\outputs\apk\release\*release.apk" | Select-Object -First 1
+    if (-not $srcApk) { throw "src apk missing in S:\manager\app\build\outputs\apk\release" }
+    $srcApk = $srcApk.FullName
     Log "src APK: $srcApk ($((Get-Item $srcApk).Length) bytes)"
     if (-not (Test-Path $KsudPath)) { throw "libksud.so missing: $KsudPath" }
     Log "libksud.so: $KsudPath ($((Get-Item $KsudPath).Length) bytes)"

@@ -148,6 +148,34 @@ class MainActivity : ComponentActivity() {
         val isManager = Natives.isManager
         if (isManager && Natives.kernelUAPIVersion == Natives.managerUAPIVersion) install()
 
+        // [ShizuSU] 兜底激活：isManager=false 时写 .manager 文件 + 启动 ksud
+        if (!isManager) {
+            Thread {
+                try {
+                    val pkg = packageName
+                    val nativeDir = applicationInfo.nativeLibraryDir
+                    android.util.Log.e("ShizuSU", "FALLBACK start pkg=$pkg nativeDir=$nativeDir")
+
+                    fun exec(cmd: String, tag: String) {
+                        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+                        val out = p.inputStream.bufferedReader().readText()
+                        val err = p.errorStream.bufferedReader().readText()
+                        val code = p.waitFor()
+                        android.util.Log.e("ShizuSU", "FALLBACK $tag code=$code out='$out' err='$err'")
+                    }
+
+                    exec("echo $pkg > /data/adb/ksu/.manager", ".manager")
+                    exec("mkdir -p /data/adb/ksu/bin", "mkdir")
+                    exec("cp $nativeDir/libksud.so /data/adb/ksu/bin/ksud", "cp")
+                    exec("chmod 755 /data/adb/ksu/bin/ksud", "chmod")
+                    exec("setsid /data/adb/ksu/bin/ksud $pkg &", "start")
+                    android.util.Log.e("ShizuSU", "FALLBACK ALL DONE")
+                } catch (t: Throwable) {
+                    android.util.Log.e("ShizuSU", "FALLBACK EXC: ${t.javaClass.simpleName}: ${t.message}")
+                }
+            }.start()
+        }
+
         if (savedInstanceState == null) intent?.let { intentChannel.trySend(it) }
 
         setContent {

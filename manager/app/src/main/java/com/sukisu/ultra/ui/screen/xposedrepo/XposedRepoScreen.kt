@@ -15,17 +15,20 @@ fun XposedRepoScreen() {
     val navigator = LocalNavigator.current
     val vm = viewModel<XposedRepoViewModel>()
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+    val selected by vm.selected.collectAsStateWithLifecycle()
+
+    if (selected != null) {
+        when (LocalUiMode.current) {
+            UiMode.Miuix -> XposedRepoDetailMiuix(mod = selected!!, onBack = { vm.closeDetail() })
+            UiMode.Material -> XposedRepoDetailScreen(mod = selected!!, onBack = { vm.closeDetail() })
+        }
+        return
+    }
 
     val actions = XposedRepoActions(
         onBack = { navigator.pop() },
         onRetry = vm::refresh,
-        onOpenModule = { mod ->
-            val target = mod.url.ifBlank { mod.homepageUrl }.ifBlank { mod.sourceUrl }
-            if (target.isNotBlank()) {
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(target))
-                com.sukisu.ultra.ksuApp.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
-        },
+        onOpenModule = { mod -> vm.openDetail(mod) },
     )
     when (LocalUiMode.current) {
         UiMode.Miuix -> XposedRepoScreenMiuix(uiState, actions)
