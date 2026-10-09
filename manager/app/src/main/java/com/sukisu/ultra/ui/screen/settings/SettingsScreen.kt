@@ -40,6 +40,12 @@ fun SettingPager(
         }
     }
 
+    // [ShizuSU] 状态级兜底：监听 alternativeIcon 变化 → 刷新桌面图标
+    // （绕过 onCheckedChange 回调失效问题——状态变即触发）
+    LaunchedEffect(uiState.alternativeIcon) {
+        com.sukisu.ultra.ui.util.toggleLauncherIcon(context, uiState.alternativeIcon)
+    }
+
     LifecycleResumeEffect(Unit) {
         if (initialResumeHandled.value && latestIsCurrentPage) {
             viewModel.refresh()
