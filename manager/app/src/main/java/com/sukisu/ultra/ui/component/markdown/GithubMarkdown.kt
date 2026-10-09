@@ -93,7 +93,17 @@ fun GithubMarkdown(
     val parser = remember(extensions) { Parser.builder().extensions(extensions).build() }
     val renderer = remember(extensions) { HtmlRenderer.builder().extensions(extensions).build() }
     val rendered = remember(content, isMarkdown) {
-        if (isMarkdown) renderer.render(parser.parse(content)) else content
+        var html = if (isMarkdown) renderer.render(parser.parse(content)) else content
+        // [ShizuSU] 图片 URL 代理：raw.githubusercontent.com → ghproxy（设备直连 raw 不通）
+        html = html.replace(
+            Regex("src=\"https://raw\\.githubusercontent\\.com/([^\"]+)\""),
+            "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$1\""
+        )
+        html = html.replace(
+            Regex("src=\"https://cdn\\.jsdelivr\\.net/gh/([^\"]+)\""),
+            "src=\"https://ghproxy.net/https://cdn.jsdelivr.net/gh/$1\""
+        )
+        html
     }
     val styleContent = """
         :root {
