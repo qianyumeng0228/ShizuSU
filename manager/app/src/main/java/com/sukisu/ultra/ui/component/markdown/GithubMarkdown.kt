@@ -104,14 +104,21 @@ fun GithubMarkdown(
             Regex("src=\"https://cdn\\.jsdelivr\\.net/gh/([^\"]+)\""),
             "src=\"https://ghproxy.net/https://cdn.jsdelivr.net/gh/$1\""
         )
-        // [ShizuSU] 相对路径图片 → 绝对 ghproxy URL（baseUrl = 模块 raw 根目录）
+        // [ShizuSU] 相对路径图片 → 绝对 URL
+        // baseUrl 格式：
+        //   - "Xposed-Modules-Repo/<pkg>/main/" → raw.githubusercontent.com 路径 → 走 ghproxy
+        //   - 其他（如 GitHub Pages base）→ 直接拼接 baseUrl（无需代理）
         if (baseUrl.isNotEmpty()) {
+            val isRawRepo = baseUrl.startsWith("Xposed-Modules-Repo/")
             html = html.replace(
                 Regex("src=\"(?!https?://)([^\"]+)\"")
             ) { match ->
                 val rel = match.groupValues[1].trimStart('/')
-                val abs = "$baseUrl$rel"
-                "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$abs\""
+                if (isRawRepo) {
+                    "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$baseUrl$rel\""
+                } else {
+                    "src=\"$baseUrl$rel\""
+                }
             }
         }
         html
