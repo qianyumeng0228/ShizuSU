@@ -6,7 +6,24 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
+import android.util.Log
 import com.sukisu.ultra.ui.MainActivity
+
+private const val TAG = "ShizuSU"
+
+private fun suExec(cmd: String): Int {
+    return try {
+        val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+        val out = p.inputStream.bufferedReader().readText().trim()
+        val err = p.errorStream.bufferedReader().readText().trim()
+        val code = p.waitFor()
+        Log.e(TAG, "su [$cmd] -> code=$code out='$out' err='$err'")
+        code
+    } catch (e: Exception) {
+        Log.e(TAG, "su EXC [$cmd]: ${e.message}")
+        -1
+    }
+}
 
 fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
     val pm = context.packageManager
@@ -30,40 +47,42 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_CHANGED, Uri.parse("package:${context.packageName}")))
     }
 
-    // [ShizuSU] 终解：root 权限精准清 launcher 数据库 icon 字段 + force-stop
+    // [ShizuSU] 终解：root 权限精准改 launcher db intent + 清 icon 缓存 + force-stop
     runCatching {
         val launcherPkg = pm.resolveActivity(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         )?.activityInfo?.packageName
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
             val pkg = context.packageName
-            // 1. 临时放开目录+db 权限
-            Runtime.getRuntime().exec(arrayOf("su", "-c",
-                "chmod 755 /data/user_de/0/$launcherPkg /data/user_de/0/$launcherPkg/databases 2>/dev/null && " +
-                "chmod 666 /data/user_de/0/$launcherPkg/databases/launcher4x6.db 2>/dev/null"
-            )).waitFor()
-            // 2. 清自身条目 icon 字段 + 更新 intent 指向当前启用的 component
-            runCatching {
-                val db = SQLiteDatabase.openDatabase(
-                    "/data/user_de/0/$launcherPkg/databases/launcher4x6.db",
-                    null, SQLiteDatabase.OPEN_READWRITE
-                )
-                // 构造目标 intent 字符串（与 launcher db 格式一致）
-                val targetComponent = if (useAlt) {
-                    "$pkg/${MainActivity::class.java.name}Alias"
-                } else {
-                    "$pkg/${MainActivity::class.java.name}"
-                }
-                val newIntent = "#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=$targetComponent;end"
-                db.execSQL("UPDATE favorites SET intent=?, iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'", arrayOf(newIntent))
-                db.close()
+            val dbPath = "/data/user_de/0/$launcherPkg/databases/launcher4x6.db"
+
+            // 1. 放开目录 traverse + db 写权限
+            suExec("chmod 755 /data/user_de/0 /data/user_de/0/$launcherPkg /data/user_de/0/$launcherPkg/databases")
+            suExec("chmod 666 $dbPath")
+
+            // 2. UPDATE favorites: intent 指向当前 component + 清 icon 缓存
+            val targetComponent = if (useAlt) {
+                "$pkg/${MainActivity::class.java.name}Alias"
+            } else {
+                "$pkg/${MainActivity::class.java.name}"
             }
+            val newIntent = "#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=$targetComponent;end"
+            try {
+                SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
+                    db.execSQL(
+                        "UPDATE favorites SET intent=?, iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'",
+                        arrayOf(newIntent)
+                    )
+                    Log.e(TAG, "DB UPDATE OK useAlt=$useAlt target=$targetComponent")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "DB UPDATE FAILED: ${e.message}")
+            }
+
             // 3. 恢复权限 + force-stop launcher
-            Runtime.getRuntime().exec(arrayOf("su", "-c",
-                "chmod 600 /data/user_de/0/$launcherPkg/databases/launcher4x6.db 2>/dev/null && " +
-                "chmod 700 /data/user_de/0/$launcherPkg/databases /data/user_de/0/$launcherPkg 2>/dev/null && " +
-                "am force-stop $launcherPkg"
-            )).waitFor()
+            suExec("chmod 600 $dbPath")
+            suExec("chmod 700 /data/user_de/0/$launcherPkg/databases /data/user_de/0/$launcherPkg")
+            suExec("am force-stop $launcherPkg")
         }
     }
 }
