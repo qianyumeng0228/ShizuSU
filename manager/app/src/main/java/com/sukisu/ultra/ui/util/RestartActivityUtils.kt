@@ -26,6 +26,7 @@ private fun suExec(cmd: String): Int {
 }
 
 fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
+    Log.e(TAG, "toggleLauncherIcon ENTER useAlt=$useAlt pkg=${context.packageName}")
     val pm = context.packageManager
     val main = ComponentName(context, MainActivity::class.java.name)
     val alias = ComponentName(context, "${MainActivity::class.java.name}Alias")
@@ -53,6 +54,7 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         )?.activityInfo?.packageName
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
+            Log.e(TAG, "launcherPkg=$launcherPkg — proceeding")
             val pkg = context.packageName
             val dbPath = "/data/user_de/0/$launcherPkg/databases/launcher4x6.db"
 
