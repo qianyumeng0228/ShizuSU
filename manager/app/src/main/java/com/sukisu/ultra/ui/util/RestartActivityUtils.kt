@@ -42,13 +42,20 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
                 "chmod 755 /data/user_de/0/$launcherPkg /data/user_de/0/$launcherPkg/databases 2>/dev/null && " +
                 "chmod 666 /data/user_de/0/$launcherPkg/databases/launcher4x6.db 2>/dev/null"
             )).waitFor()
-            // 2. 清自身条目 icon 字段（favorites 表）
+            // 2. 清自身条目 icon 字段 + 更新 intent 指向当前启用的 component
             runCatching {
                 val db = SQLiteDatabase.openDatabase(
                     "/data/user_de/0/$launcherPkg/databases/launcher4x6.db",
                     null, SQLiteDatabase.OPEN_READWRITE
                 )
-                db.execSQL("UPDATE favorites SET iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'")
+                // 构造目标 intent 字符串（与 launcher db 格式一致）
+                val targetComponent = if (useAlt) {
+                    "$pkg/${MainActivity::class.java.name}Alias"
+                } else {
+                    "$pkg/${MainActivity::class.java.name}"
+                }
+                val newIntent = "#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=$targetComponent;end"
+                db.execSQL("UPDATE favorites SET intent=?, iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'", arrayOf(newIntent))
                 db.close()
             }
             // 3. 恢复权限 + force-stop launcher
