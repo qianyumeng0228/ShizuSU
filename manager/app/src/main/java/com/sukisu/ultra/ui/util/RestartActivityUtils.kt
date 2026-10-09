@@ -11,22 +11,27 @@ import com.sukisu.ultra.ui.MainActivity
 
 private const val TAG = "ShizuSU"
 
+private fun log(msg: String) {
+    System.out.println("[ShizuSU] $msg")
+    Log.e("ShizuSU", msg)
+}
+
 private fun suExec(cmd: String): Int {
     return try {
         val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
         val out = p.inputStream.bufferedReader().readText().trim()
         val err = p.errorStream.bufferedReader().readText().trim()
         val code = p.waitFor()
-        Log.e(TAG, "su [$cmd] -> code=$code out='$out' err='$err'")
+        log("su [$cmd] -> code=$code out='$out' err='$err'")
         code
     } catch (e: Exception) {
-        Log.e(TAG, "su EXC [$cmd]: ${e.message}")
+        log("su EXC [$cmd]: ${e.message}")
         -1
     }
 }
 
 fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
-    Log.e(TAG, "toggleLauncherIcon ENTER useAlt=$useAlt pkg=${context.packageName}")
+    log("toggleLauncherIcon ENTER useAlt=$useAlt pkg=${context.packageName}")
     val pm = context.packageManager
     val main = ComponentName(context, MainActivity::class.java.name)
     val alias = ComponentName(context, "${MainActivity::class.java.name}Alias")
@@ -54,7 +59,7 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         )?.activityInfo?.packageName
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
-            Log.e(TAG, "launcherPkg=$launcherPkg — proceeding")
+            log("launcherPkg=$launcherPkg — proceeding")
             val pkg = context.packageName
             val dbPath = "/data/user_de/0/$launcherPkg/databases/launcher4x6.db"
 
@@ -78,10 +83,10 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
                         "UPDATE favorites SET intent=?, iconPackage=NULL, iconResource=NULL, icon=NULL, iconType=0 WHERE intent LIKE '%$pkg%'",
                         arrayOf(newIntent)
                     )
-                    Log.e(TAG, "DB UPDATE OK useAlt=$useAlt target=$targetComponent")
+                    log("DB UPDATE OK useAlt=$useAlt target=$targetComponent")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "DB UPDATE FAILED: ${e.message}")
+                log("DB UPDATE FAILED: ${e.message}")
             }
 
             // 3. 恢复权限（launcher 重启读 db 时需要）
