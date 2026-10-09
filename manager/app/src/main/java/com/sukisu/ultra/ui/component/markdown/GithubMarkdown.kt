@@ -106,21 +106,25 @@ fun GithubMarkdown(
         )
         // [ShizuSU] 相对路径图片 → 绝对 URL
         // baseUrl 格式：
-        //   - "Xposed-Modules-Repo/<pkg>/main/" → raw.githubusercontent.com 路径 → 走 ghproxy
-        //   - "raw.githubusercontent.com/<owner>/<repo>/<branch>/" → 走 ghproxy
+        //   - "Xposed-Modules-Repo/<pkg>/main/" → raw 路径 → 走 ghproxy
+        //   - "<owner>/<repo>/<branch>/" → raw 路径（从 sourceUrl 转换）→ 走 ghproxy
+        //   - "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/" → 走 ghproxy
         //   - 其他（GitHub Pages 等）→ 直接拼接
         if (baseUrl.isNotEmpty()) {
-            val needsProxy = baseUrl.startsWith("Xposed-Modules-Repo/") || baseUrl.contains("raw.githubusercontent.com/")
+            val needsProxy = baseUrl.startsWith("Xposed-Modules-Repo/") ||
+                baseUrl.contains("raw.githubusercontent.com/") ||
+                // 匹配 <owner>/<repo>/<branch>/ 格式（不含 host 的纯 raw 路径）
+                Regex("^[^/]+/[^/]+/[^/]+/$").matches(baseUrl)
             html = html.replace(
                 Regex("src=\"(?!https?://)([^\"]+)\"")
             ) { match ->
                 val rel = match.groupValues[1].trimStart('/')
                 if (needsProxy) {
-                    // 提取 owner/repo/branch 路径部分
-                    val rawPath = if (baseUrl.startsWith("Xposed-Modules-Repo/")) {
-                        baseUrl
-                    } else {
-                        baseUrl.removePrefix("https://raw.githubusercontent.com/")
+                    val rawPath = when {
+                        baseUrl.startsWith("Xposed-Modules-Repo/") -> baseUrl
+                        baseUrl.startsWith("https://raw.githubusercontent.com/") ->
+                            baseUrl.removePrefix("https://raw.githubusercontent.com/")
+                        else -> baseUrl  // 已是 <owner>/<repo>/<branch>/
                     }
                     "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$rawPath$rel\""
                 } else {
