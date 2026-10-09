@@ -29,13 +29,18 @@ fun toggleLauncherIcon(context: Context, useAlt: Boolean) {
         context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_CHANGED, Uri.parse("package:${context.packageName}")))
     }
 
-    // [ShizuSU] 终解：root 权限 force-stop launcher 进程 → 桌面自动重建 → 图标即时刷新
+    // [ShizuSU] 终解：root 权限 force-stop launcher + 清图标缓存 → 桌面自动重建 → 图标即时刷新
     runCatching {
         val launcherPkg = pm.resolveActivity(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         )?.activityInfo?.packageName
         if (!launcherPkg.isNullOrEmpty() && launcherPkg != context.packageName) {
             Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop $launcherPkg")).waitFor()
+            // 清图标缓存（MIUI launcher 持久缓存，force-stop 不失效）
+            Runtime.getRuntime().exec(arrayOf("su", "-c",
+                "rm -rf /data/user_de/0/$launcherPkg/cache/*icon* /data/user_de/0/$launcherPkg/cache/*Icon* " +
+                "/data/data/$launcherPkg/cache/*icon* /data/data/$launcherPkg/cache/*Icon* 2>/dev/null"
+            )).waitFor()
         }
     }
 }
