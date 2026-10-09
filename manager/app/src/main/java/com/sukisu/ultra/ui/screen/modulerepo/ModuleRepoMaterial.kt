@@ -466,6 +466,7 @@ fun ModuleRepoDetailScreenMaterial(
                     0 -> ReadmePage(
                         readmeHtml = state.readmeHtml,
                         readmeLoaded = state.readmeLoaded,
+                        sourceUrl = state.sourceUrl,
                         innerPadding = paddedInnerPadding,
                         scrollBehavior = scrollBehavior
                     )
@@ -512,6 +513,7 @@ fun ModuleRepoDetailScreenMaterial(
 private fun ReadmePage(
     readmeHtml: String?,
     readmeLoaded: Boolean,
+    sourceUrl: String = "",
     innerPadding: PaddingValues,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
@@ -544,6 +546,11 @@ private fun ReadmePage(
                                 content = readmeHtml,
                                 onLoadingChange = { loaded = !it },
                                 containerColor = MaterialTheme.colorScheme.surface,
+                                baseUrl = run {
+                                    if (sourceUrl.startsWith("https://github.com/")) {
+                                        sourceUrl.removePrefix("https://github.com/").trimEnd('/') + "/main/"
+                                    } else ""
+                                }
                             )
                         }
                     }

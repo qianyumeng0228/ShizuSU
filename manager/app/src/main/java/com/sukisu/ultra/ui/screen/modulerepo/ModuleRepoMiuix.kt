@@ -585,6 +585,7 @@ fun ModuleRepoScreenMiuix(
 private fun ReadmePage(
     readmeHtml: String?,
     readmeLoaded: Boolean,
+    sourceUrl: String = "",
     innerPadding: PaddingValues, scrollBehavior: ScrollBehavior, backdrop: LayerBackdrop?
 ) {
     val layoutDirection = LocalLayoutDirection.current
@@ -624,6 +625,12 @@ private fun ReadmePage(
                                     GithubMarkdown(
                                         content = readmeHtml,
                                         onLoadingChange = { loaded = !it },
+                                        baseUrl = run {
+                                            // Convert sourceUrl "https://github.com/<owner>/<repo>" → raw base "<owner>/<repo>/main/"
+                                            if (sourceUrl.startsWith("https://github.com/")) {
+                                                sourceUrl.removePrefix("https://github.com/").trimEnd('/') + "/main/"
+                                            } else ""
+                                        }
                                     )
                                 }
                             }
@@ -1166,6 +1173,7 @@ fun ModuleRepoDetailScreenMiuix(
                 0 -> ReadmePage(
                     readmeHtml = state.readmeHtml,
                     readmeLoaded = state.readmeLoaded,
+                    sourceUrl = state.sourceUrl,
                     innerPadding = innerPadding,
                     scrollBehavior = scrollBehavior,
                     backdrop = backdrop

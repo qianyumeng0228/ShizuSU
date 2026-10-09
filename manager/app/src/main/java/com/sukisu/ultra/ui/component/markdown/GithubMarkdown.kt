@@ -107,15 +107,22 @@ fun GithubMarkdown(
         // [ShizuSU] 相对路径图片 → 绝对 URL
         // baseUrl 格式：
         //   - "Xposed-Modules-Repo/<pkg>/main/" → raw.githubusercontent.com 路径 → 走 ghproxy
-        //   - 其他（如 GitHub Pages base）→ 直接拼接 baseUrl（无需代理）
+        //   - "raw.githubusercontent.com/<owner>/<repo>/<branch>/" → 走 ghproxy
+        //   - 其他（GitHub Pages 等）→ 直接拼接
         if (baseUrl.isNotEmpty()) {
-            val isRawRepo = baseUrl.startsWith("Xposed-Modules-Repo/")
+            val needsProxy = baseUrl.startsWith("Xposed-Modules-Repo/") || baseUrl.contains("raw.githubusercontent.com/")
             html = html.replace(
                 Regex("src=\"(?!https?://)([^\"]+)\"")
             ) { match ->
                 val rel = match.groupValues[1].trimStart('/')
-                if (isRawRepo) {
-                    "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$baseUrl$rel\""
+                if (needsProxy) {
+                    // 提取 owner/repo/branch 路径部分
+                    val rawPath = if (baseUrl.startsWith("Xposed-Modules-Repo/")) {
+                        baseUrl
+                    } else {
+                        baseUrl.removePrefix("https://raw.githubusercontent.com/")
+                    }
+                    "src=\"https://ghproxy.net/https://raw.githubusercontent.com/$rawPath$rel\""
                 } else {
                     "src=\"$baseUrl$rel\""
                 }
