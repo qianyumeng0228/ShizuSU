@@ -376,28 +376,20 @@ fun ModulePagerMaterial(
                         zipLoading = true
                         withContext(Dispatchers.IO) {
                             runCatching {
-                                // 方案A: root writes to file, app reads own file (bypass stream issues)
-                                val outFile = java.io.File(zipPickerCtx.filesDir, "zips.txt")
-                                // Use absolute path for find (PATH may differ in App su env)
-                                val cmd = "/system/bin/find /sdcard -maxdepth 4 -name '*.zip' -type f > '${outFile.absolutePath}' 2>&1"
-                                android.util.Log.e("ShizuSU", "ZIPFIND cmd='$cmd'")
-                                com.topjohnwu.superuser.Shell.cmd(cmd).exec()
-                                val size = outFile.length()
-                                val content = if (size > 0) outFile.bufferedReader().readText() else "(empty)"
-                                android.util.Log.e("ShizuSU", "ZIPFIND wrote size=$size content='$content'")
-                                outFile.bufferedReader().readLines()
-                                    .filter { it.endsWith(".zip") && it.length > 5 }
-                                    .map { path ->
-                                        val sizeOut = java.util.ArrayList<String>()
-                                        runCatching {
-                                            com.topjohnwu.superuser.Shell.cmd("/system/bin/stat -c %s '$path' 2>/dev/null")
-                                                .to(sizeOut, null).exec()
-                                        }
-                                        val fsize = sizeOut.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
-                                        path to fsize
+                                // 方案C: direct File API scan (MANAGE_EXTERNAL_STORAGE) — no su needed
+                                val sdcard = java.io.File("/storage/emulated/0")
+                                val results = mutableListOf<Pair<String, Long>>()
+                                fun scan(dir: java.io.File, depth: Int) {
+                                    if (depth > 4 || !dir.isDirectory) return
+                                    dir.listFiles()?.forEach { f ->
+                                        if (f.isDirectory) scan(f, depth + 1)
+                                        else if (f.name.endsWith(".zip")) results.add(f.absolutePath to f.length())
                                     }
-                                    .sortedByDescending { it.second }
-                            }.onFailure { android.util.Log.e("ShizuSU", "ZIPFIND EXC: ${it.message}") }
+                                }
+                                scan(sdcard, 0)
+                                android.util.Log.e("ShizuSU", "ZIPSCAN found ${results.size} zips via direct File API")
+                                results.sortedByDescending { it.second }
+                            }.onFailure { android.util.Log.e("ShizuSU", "ZIPSCAN EXC: ${it.message}") }
                                 .getOrDefault(emptyList<Pair<String, Long>>())
                                 .let { zipList = it }
                         }
