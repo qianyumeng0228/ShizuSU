@@ -271,7 +271,7 @@ fun XposedRepoDetailScreen(mod: XposedModule, onBack: () -> Unit) {
     var extra by remember { mutableStateOf<RepoExtra?>(null) }
 
     LaunchedEffect(mod.name) {
-        extra = XposedRepoDetailFetcher.fetch(mod.name)
+        extra = XposedRepoDetailFetcher.fetch(mod.name, fallbackReadme = mod.readme)
     }
 
     fun openUrl(u: String) {

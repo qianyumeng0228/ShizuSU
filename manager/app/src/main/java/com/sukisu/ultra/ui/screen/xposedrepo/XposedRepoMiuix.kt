@@ -182,7 +182,7 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     var extra by remember { mutableStateOf<RepoExtra?>(null) }
     androidx.compose.runtime.LaunchedEffect(mod.name) {
-        extra = XposedRepoDetailFetcher.fetch(mod.name)
+        extra = XposedRepoDetailFetcher.fetch(mod.name, fallbackReadme = mod.readme)
     }
 
     Scaffold(

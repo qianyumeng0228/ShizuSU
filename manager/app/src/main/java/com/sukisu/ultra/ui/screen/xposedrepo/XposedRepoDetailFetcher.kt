@@ -69,7 +69,7 @@ object XposedRepoDetailFetcher {
         return null
     }
 
-    suspend fun fetch(pkg: String): RepoExtra = withContext(Dispatchers.IO) {
+    suspend fun fetch(pkg: String, fallbackReadme: String = ""): RepoExtra = withContext(Dispatchers.IO) {
         log("FETCH START pkg=$pkg")
         var extra = RepoExtra()
         val repoBase = "https://raw.githubusercontent.com/Xposed-Modules-Repo/$pkg/main"
@@ -154,6 +154,12 @@ object XposedRepoDetailFetcher {
         runCatching {
             fetchRaw(pkg, "README_EN.md")?.let { extra = extra.copy(readmeEn = it) }
         }.onFailure { log("README_EN.md FAIL: ${it.message}") }
+
+        // 4b. Fallback: use local readme from list data if realtime fetch failed
+        if (extra.readmeZh.isBlank() && fallbackReadme.isNotBlank()) {
+            log("README fallback: using local readme from list data (${fallbackReadme.length} chars)")
+            extra = extra.copy(readmeZh = fallbackReadme)
+        }
 
         // 5. Icon (candidate filenames × 3 mirrors)
         runCatching {
