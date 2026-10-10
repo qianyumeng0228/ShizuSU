@@ -375,19 +375,20 @@ fun ModulePagerMaterial(
                         zipLoading = true
                         withContext(Dispatchers.IO) {
                             runCatching {
-                                // Try root first, fall back to direct file listing
-                                val cmd = "find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null"
-                                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
-                                val out = p.inputStream.bufferedReader().readLines()
-                                val err = p.errorStream.bufferedReader().readText()
-                                p.waitFor()
-                                android.util.Log.e("ShizuSU", "ZIPFIND out=${out.size} err='$err'")
+                                // Use libsu Shell (proven working in KsuCli) instead of raw Runtime.exec
+                                val out = java.util.ArrayList<String>()
+                                com.topjohnwu.superuser.Shell.cmd("find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null")
+                                    .to(out, null).exec().code
+                                android.util.Log.e("ShizuSU", "ZIPFIND out=${out.size}")
                                 out
                                     .filter { it.endsWith(".zip") && it.length > 5 }
                                     .map { path ->
-                                        val size = runCatching {
-                                            Runtime.getRuntime().exec(arrayOf("su", "-c", "stat -c %s '$path' 2>/dev/null")).inputStream.bufferedReader().readText().trim().toLongOrNull() ?: 0L
-                                        }.getOrDefault(0L)
+                                        val sizeOut = java.util.ArrayList<String>()
+                                        runCatching {
+                                            com.topjohnwu.superuser.Shell.cmd("stat -c %s '$path' 2>/dev/null")
+                                                .to(sizeOut, null).exec()
+                                        }
+                                        val size = sizeOut.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
                                         path to size
                                     }
                                     .sortedByDescending { it.second }
