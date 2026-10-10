@@ -28,6 +28,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.TextButton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -359,44 +365,76 @@ fun ModulePagerMaterial(
         floatingActionButton = {
             if (uiState.installButtonVisible) {
                 val moduleInstall = stringResource(id = R.string.module_install)
-                val selectZipLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.StartActivityForResult()
-                ) { activityResult ->
-                    if (activityResult.resultCode != RESULT_OK) {
-                        return@rememberLauncherForActivityResult
-                    }
-                    val data = activityResult.data ?: return@rememberLauncherForActivityResult
-                    val clipData = data.clipData
+                // Custom zip picker state (root find — bypass MIUI DocumentsUI)
+                var showZipPicker by rememberSaveable { mutableStateOf(false) }
+                var zipList by rememberSaveable { mutableStateOf<List<Pair<String, Long>>>(emptyList()) }
+                var zipLoading by rememberSaveable { mutableStateOf(false) }
 
-                    val uris = mutableListOf<Uri>()
-                    if (clipData != null) {
-                        for (i in 0 until clipData.itemCount) {
-                            clipData.getItemAt(i)?.uri?.let { uris.add(it) }
+                LaunchedEffect(showZipPicker) {
+                    if (showZipPicker && zipList.isEmpty() && !zipLoading) {
+                        zipLoading = true
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "find /sdcard -maxdepth 3 -name '*.zip' -type f 2>/dev/null"))
+                                p.inputStream.bufferedReader().readLines()
+                                    .filter { it.endsWith(".zip") }
+                                    .map { path ->
+                                        val size = runCatching {
+                                            Runtime.getRuntime().exec(arrayOf("su", "-c", "stat -c %s '$path' 2>/dev/null")).inputStream.bufferedReader().readText().trim().toLongOrNull() ?: 0L
+                                        }.getOrDefault(0L)
+                                        path to size
+                                    }
+                                    .sortedByDescending { it.second }
+                            }.getOrDefault(emptyList<Pair<String, Long>>())
+                                .let { zipList = it }
                         }
-                    } else {
-                        data.data?.let { uris.add(it) }
+                        zipLoading = false
                     }
+                }
 
-                    actions.onOpenFlash(uris)
+                if (showZipPicker) {
+                    AlertDialog(
+                        onDismissRequest = { showZipPicker = false },
+                        title = { Text("选择模块 zip") },
+                        text = {
+                            if (zipLoading) {
+                                Text("正在扫描 /sdcard ...")
+                            } else if (zipList.isEmpty()) {
+                                Text("未找到 zip 文件")
+                            } else {
+                                val ctx = LocalContext.current
+                                Column {
+                                    zipList.forEach { (path, size) ->
+                                        val name = path.substringAfterLast('/')
+                                        ListItem(
+                                            headlineContent = { Text(name) },
+                                            supportingContent = { Text("${"%.1f".format(size / 1024.0 / 1024.0)} MB  $path") },
+                                            modifier = Modifier.clickable {
+                                                showZipPicker = false
+                                                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                                    val cacheFile = java.io.File(ctx.cacheDir, "module.zip")
+                                                    runCatching {
+                                                        Runtime.getRuntime().exec(arrayOf("su", "-c", "cp '$path' '${cacheFile.absolutePath}' && chmod 644 '${cacheFile.absolutePath}'"))
+                                                            .waitFor()
+                                                    }
+                                                    actions.onOpenFlash(listOf(android.net.Uri.fromFile(cacheFile)))
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = { TextButton(onClick = { showZipPicker = false }) { Text("取消") } }
+                    )
                 }
 
                 SmallExtendedFloatingActionButton(
                     modifier = Modifier.padding(bottom = bottomInnerPadding),
                     expanded = fabExpanded,
                     onClick = {
-                        // Select the zip files to install
-                        // Use */* + EXTRA_MIME_TYPES for MIUI compatibility (application/zip alone hides zips in Downloads)
-                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                            type = "*/*"
-                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(
-                                "application/zip",
-                                "application/x-zip-compressed",
-                                "application/octet-stream",
-                                "application/java-archive"
-                            ))
-                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                        }
-                        selectZipLauncher.launch(intent)
+                        // Custom zip picker (root find — bypass MIUI DocumentsUI SAF issues)
+                        showZipPicker = true
                     },
                     icon = { Icon(Icons.Filled.Add, moduleInstall) },
                     text = { Text(text = moduleInstall) },
