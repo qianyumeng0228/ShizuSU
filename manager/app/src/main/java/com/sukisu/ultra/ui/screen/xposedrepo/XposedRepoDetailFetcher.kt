@@ -148,8 +148,8 @@ object XposedRepoDetailFetcher {
             }.onFailure { log("api repo FAIL: ${it.message}") }
         }
 
-        // 2. Releases (fallback if enrich has no bodies)
-        if (extra.releaseBodies.isEmpty()) {
+        // 2. Releases (fallback if enrich has no release list)
+        if (extra.releasesFull.isEmpty()) {
             runCatching {
                 val req = Request.Builder().url("$apiBase/releases").header("User-Agent", "ShizuSU").build()
                 client.newCall(req).execute().use { resp ->
@@ -157,14 +157,39 @@ object XposedRepoDetailFetcher {
                     if (resp.isSuccessful) {
                         val arr = JSONArray(resp.body.string())
                         val bodies = mutableMapOf<String, String>()
+                        val releasesFull = mutableListOf<XposedRelease>()
                         for (i in 0 until arr.length()) {
                             val r = arr.getJSONObject(i)
                             val tag = r.optString("tag_name", "")
                             val body = r.optString("body", "")
-                            if (tag.isNotBlank() && body.isNotBlank()) bodies[tag] = body
+                            if (tag.isNotBlank()) {
+                                bodies[tag] = body
+                                // Parse first APK asset
+                                var dlUrl = ""
+                                var size = 0L
+                                var dlCount = 0
+                                val assets = r.optJSONArray("assets")
+                                if (assets != null && assets.length() > 0) {
+                                    val a = assets.getJSONObject(0)
+                                    dlUrl = a.optString("browser_download_url", "")
+                                    size = a.optLong("size", 0L)
+                                    dlCount = a.optInt("download_count", 0)
+                                }
+                                releasesFull += XposedRelease(
+                                    name = r.optString("name", tag),
+                                    tagName = tag,
+                                    createdAt = r.optString("created_at", ""),
+                                    downloadUrl = dlUrl,
+                                    size = size,
+                                    downloadCount = dlCount,
+                                )
+                            }
                         }
-                        extra = extra.copy(releaseBodies = bodies)
-                        log("releases parsed: ${arr.length()} total, ${bodies.size} with body")
+                        extra = extra.copy(
+                            releaseBodies = bodies,
+                            releasesFull = releasesFull,
+                        )
+                        log("releases parsed: ${arr.length()} total, ${bodies.size} with body, ${releasesFull.size} full entries")
                     }
                 }
             }.onFailure { log("api releases FAIL: ${it.message}") }
