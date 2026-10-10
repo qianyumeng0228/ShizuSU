@@ -252,7 +252,7 @@ fun XposedRepoScreenMaterial(state: XposedRepoUiState, actions: XposedRepoAction
                                     }
                                 }
                             }
-                            // Load more trigger at end of list
+                            // Load more button at end of list (manual trigger — no cascade)
                             if (state.isLoadingMore) {
                                 item {
                                     Box(
@@ -266,10 +266,11 @@ fun XposedRepoScreenMaterial(state: XposedRepoUiState, actions: XposedRepoAction
                                 }
                             } else if (state.currentPage < state.totalPages && filtered.isNotEmpty()) {
                                 item {
-                                    LaunchedEffect(filtered.size) {
-                                        if (filtered.size >= state.currentPage * 30 - 5) {
-                                            actions.onLoadMore()
-                                        }
+                                    Button(
+                                        onClick = { actions.onLoadMore() },
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    ) {
+                                        Text("加载更多 (${state.modules.size}/${state.totalCount})")
                                     }
                                 }
                             }
