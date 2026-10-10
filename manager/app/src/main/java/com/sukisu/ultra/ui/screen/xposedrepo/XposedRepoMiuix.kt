@@ -223,7 +223,7 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                         }
                     }
                     1 -> {
-                        mod.releases.forEach { r ->
+                        (extra?.releasesFull?.takeIf { it.isNotEmpty() } ?: mod.releases).forEach { r ->
                             val fileName = "xposed-${mod.name}-${r.tagName}.apk"
                             val st = dlStates[fileName]
                             Card {
@@ -275,10 +275,20 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                         Text(if (colls.isEmpty()) "未知" else colls.joinToString(", "), fontSize = 14.sp, color = colorScheme.onSurfaceVariantSummary)
                         Spacer(Modifier.height(8.dp))
                         Text("主页", fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                        Text(if (mod.homepageUrl.isNotBlank() && mod.homepageUrl != "null") mod.homepageUrl else "未知", fontSize = 14.sp, color = colorScheme.primary)
+                        Text(if (mod.homepageUrl.isNotBlank() && mod.homepageUrl != "null") mod.homepageUrl else "未知", fontSize = 14.sp, color = colorScheme.primary,
+                            modifier = Modifier.clickable {
+                                if (mod.homepageUrl.isNotBlank() && mod.homepageUrl != "null") {
+                                    runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(mod.homepageUrl))) }
+                                }
+                            })
                         Spacer(Modifier.height(8.dp))
                         Text("源码", fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                        Text(if (mod.sourceUrl.isNotBlank() && mod.sourceUrl != "null") mod.sourceUrl else "未知", fontSize = 14.sp, color = colorScheme.primary)
+                        Text(if (mod.sourceUrl.isNotBlank() && mod.sourceUrl != "null") mod.sourceUrl else "未知", fontSize = 14.sp, color = colorScheme.primary,
+                            modifier = Modifier.clickable {
+                                if (mod.sourceUrl.isNotBlank() && mod.sourceUrl != "null") {
+                                    runCatching { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(mod.sourceUrl))) }
+                                }
+                            })
                     }
                 }
             }
