@@ -252,28 +252,6 @@ fun XposedRepoScreenMaterial(state: XposedRepoUiState, actions: XposedRepoAction
                                     }
                                 }
                             }
-                            // Load more button at end of list (manual trigger — no cascade)
-                            if (state.isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                    }
-                                }
-                            } else if (state.currentPage < state.totalPages && filtered.isNotEmpty()) {
-                                item {
-                                    Button(
-                                        onClick = { actions.onLoadMore() },
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    ) {
-                                        Text("加载更多 (${state.modules.size}/${state.totalCount})")
-                                    }
-                                }
-                            }
                         }
                     }
                 }

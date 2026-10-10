@@ -36,10 +36,10 @@ object XposedRepoDetailFetcher {
     private fun fetchRaw(pkg: String, file: String): String? {
         val base = "Xposed-Modules-Repo/$pkg/main/$file"
         val candidates = listOf(
-            "https://ghproxy.net/https://raw.githubusercontent.com/$base",
-            "https://gh-proxy.com/https://raw.githubusercontent.com/$base",
             "https://raw.githubusercontent.com/$base",
             "https://cdn.jsdelivr.net/gh/Xposed-Modules-Repo/$pkg@main/$file",
+            "https://ghproxy.net/https://raw.githubusercontent.com/$base",
+            "https://gh-proxy.com/https://raw.githubusercontent.com/$base",
             "https://ghfast.top/https://raw.githubusercontent.com/$base",
         )
         for (url in candidates) {

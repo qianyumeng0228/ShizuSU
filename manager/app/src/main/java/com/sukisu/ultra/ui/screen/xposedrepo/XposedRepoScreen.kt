@@ -29,7 +29,6 @@ fun XposedRepoScreen() {
         onBack = { navigator.pop() },
         onRetry = vm::refresh,
         onOpenModule = { mod -> vm.openDetail(mod) },
-        onLoadMore = vm::loadMore,
     )
     when (LocalUiMode.current) {
         UiMode.Miuix -> XposedRepoScreenMiuix(uiState, actions)
@@ -41,5 +40,4 @@ data class XposedRepoActions(
     val onBack: () -> Unit,
     val onRetry: () -> Unit,
     val onOpenModule: (XposedModule) -> Unit,
-    val onLoadMore: () -> Unit = {},
 )

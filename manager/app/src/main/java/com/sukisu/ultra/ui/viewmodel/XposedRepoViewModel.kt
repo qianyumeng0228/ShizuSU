@@ -15,17 +15,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 data class XposedRepoUiState(
     val isLoading: Boolean = true,
-    val isLoadingMore: Boolean = false,
     val error: String? = null,
     val modules: List<XposedModule> = emptyList(),
-    val totalCount: Int = 0,
-    val currentPage: Int = 0,
-    val totalPages: Int = 0,
 )
 
 class XposedRepoViewModel : ViewModel() {
@@ -40,20 +35,17 @@ class XposedRepoViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "XposedRepoVm"
-        // Full list fallback URLs
-        private val FULL_URLS = listOf(
+        private val URLS = listOf(
             "https://backup.modules.lsposed.org/modules.json",
             "https://qianyumeng0228.github.io/ShizuSU-Xposed/modules.json",
             "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/docs/xposed/modules.json",
             "https://modules.lsposed.org/modules.json",
         )
-        // Pagination base URL (ShizuSU-Xposed GitHub Pages)
-        private const val PAGE_BASE = "https://qianyumeng0228.github.io/ShizuSU-Xposed/module-list"
     }
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
     init { refresh() }
@@ -61,80 +53,19 @@ class XposedRepoViewModel : ViewModel() {
     fun refresh() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            val result = withContext(Dispatchers.IO) { fetchPage(1) }
-            result.onSuccess { (mods, total, totalPages) ->
-                _uiState.value = XposedRepoUiState(
-                    isLoading = false,
-                    modules = mods,
-                    totalCount = total,
-                    currentPage = 1,
-                    totalPages = totalPages,
-                )
+            val result = withContext(Dispatchers.IO) { fetch() }
+            result.onSuccess { mods ->
+                _uiState.value = XposedRepoUiState(isLoading = false, modules = mods)
             }.onFailure { e ->
-                Log.e(TAG, "refresh failed", e)
+                Log.e(TAG, "fetch failed", e)
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "unknown")
             }
         }
     }
 
-    fun loadMore() {
-        val state = _uiState.value
-        if (state.isLoadingMore || state.currentPage >= state.totalPages) return
-        viewModelScope.launch {
-            _uiState.value = state.copy(isLoadingMore = true)
-            val nextPage = state.currentPage + 1
-            val result = withContext(Dispatchers.IO) { fetchPage(nextPage) }
-            result.onSuccess { (mods, total, totalPages) ->
-                _uiState.value = _uiState.value.copy(
-                    isLoadingMore = false,
-                    modules = state.modules + mods,
-                    currentPage = nextPage,
-                    totalCount = total,
-                    totalPages = totalPages,
-                )
-            }.onFailure { e ->
-                Log.e(TAG, "loadMore failed", e)
-                _uiState.value = _uiState.value.copy(isLoadingMore = false)
-            }
-        }
-    }
-
-    /** Fetch a single page. Returns (modules, totalCount, totalPages) */
-    private fun fetchPage(page: Int): Result<Triple<List<XposedModule>, Int, Int>> {
-        // Try pagination first
-        val pageUrl = "$PAGE_BASE/page_$page.json"
-        try {
-            val req = Request.Builder().url(pageUrl)
-                .header("User-Agent", "ShizuSU-Manager/1.0")
-                .build()
-            client.newCall(req).execute().use { resp ->
-                if (resp.isSuccessful) {
-                    val body = resp.body?.string() ?: return@use
-                    val obj = JSONObject(body)
-                    val total = obj.optInt("total", 0)
-                    val totalPages = obj.optInt("totalPages", 0)
-                    val arr = obj.optJSONArray("modules") ?: JSONArray()
-                    val mods = parseModuleArray(arr)
-                    Log.e(TAG, "page $page loaded: ${mods.size} mods, total=$total")
-                    return Result.success(Triple(mods, total, totalPages))
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "page $page fetch failed: ${e.message}")
-        }
-
-        // Pagination failed — for page 1, fallback to full modules.json
-        if (page == 1) {
-            Log.e(TAG, "falling back to full modules.json")
-            return fetchFullList()
-        }
-        return Result.failure(RuntimeException("page $page not available"))
-    }
-
-    /** Fallback: fetch full modules.json from any mirror */
-    private fun fetchFullList(): Result<Triple<List<XposedModule>, Int, Int>> {
+    private fun fetch(): Result<List<XposedModule>> {
         val errs = StringBuilder()
-        for (u in FULL_URLS) {
+        for (u in URLS) {
             try {
                 val req = Request.Builder().url(u)
                     .header("User-Agent", "ShizuSU-Manager/1.0")
@@ -144,8 +75,8 @@ class XposedRepoViewModel : ViewModel() {
                     val body = resp.body?.string() ?: return@use
                     val arr = JSONArray(body)
                     val mods = parseModuleArray(arr)
-                    Log.e(TAG, "full list loaded: ${mods.size} mods")
-                    return Result.success(Triple(mods, mods.size, 1))
+                    Log.e(TAG, "loaded ${mods.size} modules from $u")
+                    return Result.success(mods)
                 }
             } catch (e: Exception) {
                 errs.append("$u -> ${e.message}\n")
@@ -203,6 +134,7 @@ class XposedRepoViewModel : ViewModel() {
                 readme = o.optString("readme", ""),
             )
         }
+        out.sortByDescending { it.latestReleaseTime }
         return out
     }
 
