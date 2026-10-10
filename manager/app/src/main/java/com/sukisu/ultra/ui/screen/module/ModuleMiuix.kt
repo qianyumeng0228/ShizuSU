@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.TextButton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.animation.slideOutHorizontally
@@ -432,7 +433,7 @@ fun ModulePagerMiuix(
                                             supportingContent = { Text("${"%.1f".format(size / 1024.0 / 1024.0)} MB  $path") },
                                             modifier = Modifier.clickable {
                                                 showZipPicker = false
-                                                kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                                kotlinx.coroutines.MainScope().launch(Dispatchers.IO) {
                                                     val src = java.io.File(path)
                                                     val cacheFile = java.io.File(ctx.cacheDir, "module.zip")
                                                     src.inputStream().use { input ->
@@ -440,7 +441,9 @@ fun ModulePagerMiuix(
                                                             input.copyTo(output)
                                                         }
                                                     }
-                                                    actions.onOpenFlash(listOf(android.net.Uri.fromFile(cacheFile)))
+                                                    withContext(Dispatchers.Main) {
+                                                        actions.onOpenFlash(listOf(android.net.Uri.fromFile(cacheFile)))
+                                                    }
                                                 }
                                             }
                                         )
