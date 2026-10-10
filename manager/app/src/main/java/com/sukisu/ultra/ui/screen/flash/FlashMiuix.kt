@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -139,10 +140,13 @@ fun FlashScreenMiuix(
                 }
                 Spacer(Modifier.height(innerPadding.calculateTopPadding()))
                 Text(
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .horizontalScroll(rememberScrollState()),
                     text = state.text,
-                    fontSize = 12.sp,
+                    fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
+                    softWrap = false,
                 )
                 Spacer(
                     Modifier.height(

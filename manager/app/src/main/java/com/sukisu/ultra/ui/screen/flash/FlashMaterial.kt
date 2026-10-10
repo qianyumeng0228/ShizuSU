@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.KeyEventBlocker
 import com.sukisu.ultra.ui.component.material.ExpressiveScaffold
@@ -125,10 +127,13 @@ fun FlashScreenMaterial(
             }
             Spacer(Modifier.height(innerPadding.calculateTopPadding()))
             Text(
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .horizontalScroll(rememberScrollState()),
                 text = state.text,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
                 fontFamily = FontFamily.Monospace,
+                softWrap = false,
             )
             Spacer(
                 Modifier.height(
