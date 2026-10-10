@@ -100,7 +100,9 @@ object XposedRepoDetailFetcher {
                             issues = j.optInt("openIssues", -1),
                             releaseBodies = changelogMap,
                             contributors = contribs.filter { it.isNotBlank() },
+                            readmeZh = j.optString("readme", ""),
                         )
+                        log("enrich readme: ${j.optString("readme", "").length} chars")
                         return@use
                     }
                 }
