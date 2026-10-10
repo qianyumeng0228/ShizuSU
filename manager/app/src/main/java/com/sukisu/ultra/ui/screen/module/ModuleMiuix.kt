@@ -63,6 +63,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Code
@@ -419,7 +420,11 @@ fun ModulePagerMiuix(
                                 }
                             } else {
                                 val ctx = LocalContext.current
-                                Column {
+                                Column(
+                                    modifier = Modifier
+                                        .heightIn(max = 400.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
                                     zipList.forEach { (path, size) ->
                                         val name = path.substringAfterLast('/')
                                         ListItem(
@@ -428,10 +433,12 @@ fun ModulePagerMiuix(
                                             modifier = Modifier.clickable {
                                                 showZipPicker = false
                                                 kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                                    val src = java.io.File(path)
                                                     val cacheFile = java.io.File(ctx.cacheDir, "module.zip")
-                                                    runCatching {
-                                                        Runtime.getRuntime().exec(arrayOf("su", "-c", "cp '$path' '${cacheFile.absolutePath}' && chmod 644 '${cacheFile.absolutePath}'"))
-                                                            .waitFor()
+                                                    src.inputStream().use { input ->
+                                                        cacheFile.outputStream().use { output ->
+                                                            input.copyTo(output)
+                                                        }
                                                     }
                                                     actions.onOpenFlash(listOf(android.net.Uri.fromFile(cacheFile)))
                                                 }
