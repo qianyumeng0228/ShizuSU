@@ -245,19 +245,33 @@ fun flashModule(
     onStderr: (String) -> Unit
 ): FlashResult {
     val resolver = ksuApp.contentResolver
-    with(resolver.openInputStream(uri)) {
-        val file = File(ksuApp.cacheDir, "module.zip")
-        file.outputStream().use { output ->
-            this?.copyTo(output)
+    // Handle file:// URIs directly (MANAGE_EXTERNAL_STORAGE) — contentResolver can't open file:// on Android 11+
+    val tempFile = if (uri.scheme == "file") {
+        // Copy directly from source file to cacheDir using File API
+        val src = File(uri.path ?: throw IllegalArgumentException("No path in file URI"))
+        val dest = File(ksuApp.cacheDir, "module.zip")
+        src.inputStream().use { input ->
+            dest.outputStream().use { output ->
+                input.copyTo(output)
+            }
         }
-        val cmd = "module install ${file.absolutePath}"
-        val result = flashWithIO("${getKsuDaemonPath()} $cmd", onStdout, onStderr)
-        Log.i("KernelSU", "install module $uri result: $result")
-
-        file.delete()
-
-        return FlashResult(result)
+        dest
+    } else {
+        with(resolver.openInputStream(uri)) {
+            val file = File(ksuApp.cacheDir, "module.zip")
+            file.outputStream().use { output ->
+                this?.copyTo(output)
+            }
+            file
+        }
     }
+    val cmd = "module install ${tempFile.absolutePath}"
+    val result = flashWithIO("${getKsuDaemonPath()} $cmd", onStdout, onStderr)
+    Log.i("KernelSU", "install module $uri result: $result")
+
+    tempFile.delete()
+
+    return FlashResult(result)
 }
 
 fun runModuleAction(
