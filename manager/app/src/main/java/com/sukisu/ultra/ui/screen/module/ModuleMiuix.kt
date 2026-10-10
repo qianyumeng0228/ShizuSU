@@ -410,7 +410,13 @@ fun ModulePagerMiuix(
                             if (zipLoading) {
                                 Text("正在扫描 /sdcard ...")
                             } else if (zipList.isEmpty()) {
-                                Text("未找到 zip 文件")
+                                Column {
+                                    Text("未找到 zip 文件")
+                                    Text("")
+                                    Text("如 /sdcard/Download 有 zip 但不显示：", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                    Text("1. 设置 → 应用 → ShizuSU → 权限 → 所有文件访问", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                    Text("2. 返回后重新点击 + 按钮", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                }
                             } else {
                                 val ctx = LocalContext.current
                                 Column {

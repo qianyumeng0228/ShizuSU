@@ -378,6 +378,7 @@ fun ModulePagerMaterial(
                             runCatching {
                                 // 方案C: direct File API scan (MANAGE_EXTERNAL_STORAGE) — no su needed
                                 val sdcard = java.io.File("/storage/emulated/0")
+                                android.util.Log.e("ShizuSU", "ZIPSCAN sdcard exists=${sdcard.exists()} canRead=${sdcard.canRead()} list=${sdcard.listFiles()?.size}")
                                 val results = mutableListOf<Pair<String, Long>>()
                                 fun scan(dir: java.io.File, depth: Int) {
                                     if (depth > 4 || !dir.isDirectory) return
@@ -387,7 +388,7 @@ fun ModulePagerMaterial(
                                     }
                                 }
                                 scan(sdcard, 0)
-                                android.util.Log.e("ShizuSU", "ZIPSCAN found ${results.size} zips via direct File API")
+                                android.util.Log.e("ShizuSU", "ZIPSCAN found ${results.size} zips")
                                 results.sortedByDescending { it.second }
                             }.onFailure { android.util.Log.e("ShizuSU", "ZIPSCAN EXC: ${it.message}") }
                                 .getOrDefault(emptyList<Pair<String, Long>>())
@@ -405,7 +406,13 @@ fun ModulePagerMaterial(
                             if (zipLoading) {
                                 Text("正在扫描 /sdcard ...")
                             } else if (zipList.isEmpty()) {
-                                Text("未找到 zip 文件")
+                                Column {
+                                    Text("未找到 zip 文件")
+                                    Text("")
+                                    Text("如 /sdcard/Download 有 zip 但不显示：", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                    Text("1. 设置 → 应用 → ShizuSU → 权限 → 所有文件访问", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                    Text("2. 返回后重新点击 + 按钮", style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                }
                             } else {
                                 val ctx = LocalContext.current
                                 Column {
