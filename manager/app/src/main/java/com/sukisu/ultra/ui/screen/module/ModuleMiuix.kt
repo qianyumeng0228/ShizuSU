@@ -375,17 +375,17 @@ fun ModulePagerMiuix(
                 var zipList by rememberSaveable { mutableStateOf<List<Pair<String, Long>>>(emptyList()) }
                 var zipLoading by rememberSaveable { mutableStateOf(false) }
 
+                val zipPickerCtx = LocalContext.current
                 LaunchedEffect(showZipPicker) {
                     if (showZipPicker && zipList.isEmpty() && !zipLoading) {
                         zipLoading = true
                         withContext(Dispatchers.IO) {
                             runCatching {
-                                // Use libsu Shell (proven working) instead of raw Runtime.exec
-                                val out = java.util.ArrayList<String>()
-                                com.topjohnwu.superuser.Shell.cmd("find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null")
-                                    .to(out, null).exec().code
-                                android.util.Log.e("ShizuSU", "ZIPFIND out=${out.size}")
-                                out
+                                // 方案A: root writes to file, app reads own file (bypass stream issues)
+                                val outFile = java.io.File(zipPickerCtx.filesDir, "zips.txt")
+                                com.topjohnwu.superuser.Shell.cmd("find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null > '${outFile.absolutePath}'").exec()
+                                android.util.Log.e("ShizuSU", "ZIPFIND wrote to ${outFile.absolutePath} exists=${outFile.exists()} size=${outFile.length()}")
+                                outFile.bufferedReader().readLines()
                                     .filter { it.endsWith(".zip") && it.length > 5 }
                                     .map { path ->
                                         val sizeOut = java.util.ArrayList<String>()
