@@ -16,6 +16,7 @@ data class RepoExtra(
     val readmeRaw: String = "",  // raw README.md markdown for GithubMarkdown
     val iconUrl: String = "",
     val releaseBodies: Map<String, String> = emptyMap(),
+    val releasesFull: List<XposedRelease> = emptyList(),  // all versions from enrich
     val tagline: String = "",
     val descZh: String = "",
     val descEn: String = "",
@@ -88,10 +89,31 @@ object XposedRepoDetailFetcher {
                     if (resp.isSuccessful) {
                         val j = JSONObject(resp.body.string())
                         val changelogMap = mutableMapOf<String, String>()
+                        val releasesFull = mutableListOf<XposedRelease>()
                         val cl = j.optJSONArray("changelog")
                         if (cl != null) for (i in 0 until cl.length()) {
                             val e = cl.getJSONObject(i)
-                            changelogMap[e.optString("tagName","")] = e.optString("body","")
+                            val tag = e.optString("tagName", "")
+                            changelogMap[tag] = e.optString("body", "")
+                            // Parse release assets if available
+                            var dlUrl = ""
+                            var size = 0L
+                            var dlCount = 0
+                            val assets = e.optJSONArray("assets")
+                            if (assets != null && assets.length() > 0) {
+                                val a = assets.getJSONObject(0)
+                                dlUrl = a.optString("downloadUrl", "")
+                                size = a.optLong("size", 0L)
+                                dlCount = a.optInt("downloadCount", 0)
+                            }
+                            releasesFull += XposedRelease(
+                                name = e.optString("name", tag),
+                                tagName = tag,
+                                createdAt = e.optString("createdAt", ""),
+                                downloadUrl = dlUrl,
+                                size = size,
+                                downloadCount = dlCount,
+                            )
                         }
                         val contribs = mutableListOf<String>()
                         val ca = j.optJSONArray("contributors")
@@ -99,10 +121,11 @@ object XposedRepoDetailFetcher {
                         extra = extra.copy(
                             issues = j.optInt("openIssues", -1),
                             releaseBodies = changelogMap,
+                            releasesFull = releasesFull,
                             contributors = contribs.filter { it.isNotBlank() },
                             readmeZh = j.optString("readme", ""),
                         )
-                        log("enrich readme: ${j.optString("readme", "").length} chars")
+                        log("enrich: readme=${j.optString("readme","").length}ch, releases=${releasesFull.size}, changelog=${changelogMap.size}")
                         return@use
                     }
                 }

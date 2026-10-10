@@ -358,8 +358,10 @@ private fun ReadmeTab(mod: XposedModule, extra: RepoExtra?, openUrl: (String) ->
 
 @Composable
 private fun ReleasesTab(mod: XposedModule, extra: RepoExtra?, dlStates: Map<String, ApkDownloader.DlState>, scope: CoroutineScope, ctx: Context, pad: PaddingValues) {
+    // Use enrich's full release list if available (30 versions), fallback to list data (1 latest)
+    val releases = extra?.releasesFull?.takeIf { it.isNotEmpty() } ?: mod.releases
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = pad.calculateTopPadding() + 56.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-        items(mod.releases) { r ->
+        items(releases) { r ->
             val fileName = "xposed-${mod.name}-${r.tagName}.apk"
             val st = dlStates[fileName]
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
