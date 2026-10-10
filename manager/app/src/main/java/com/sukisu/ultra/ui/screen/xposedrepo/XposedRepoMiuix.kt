@@ -224,7 +224,9 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                         }
                     }
                     1 -> {
-                        (extra?.releasesFull?.takeIf { it.isNotEmpty() } ?: mod.releases).forEach { r ->
+                        val relList = extra?.releasesFull?.takeIf { it.isNotEmpty() } ?: mod.releases
+                        android.util.Log.e("XposedDetail", "UI version tab: ${relList.size} releases (extra=${extra != null}, releasesFull=${extra?.releasesFull?.size ?: 0}, mod.releases=${mod.releases.size})")
+                        relList.forEach { r ->
                             val fileName = "xposed-${mod.name}-${r.tagName}.apk"
                             val st = dlStates[fileName]
                             Card {
