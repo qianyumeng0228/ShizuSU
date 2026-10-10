@@ -378,18 +378,23 @@ fun ModulePagerMaterial(
                             runCatching {
                                 // 方案A: root writes to file, app reads own file (bypass stream issues)
                                 val outFile = java.io.File(zipPickerCtx.filesDir, "zips.txt")
-                                com.topjohnwu.superuser.Shell.cmd("find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null > '${outFile.absolutePath}'").exec()
-                                android.util.Log.e("ShizuSU", "ZIPFIND wrote to ${outFile.absolutePath} exists=${outFile.exists()} size=${outFile.length()}")
+                                // Use absolute path for find (PATH may differ in App su env)
+                                val cmd = "/system/bin/find /sdcard -maxdepth 4 -name '*.zip' -type f > '${outFile.absolutePath}' 2>&1"
+                                android.util.Log.e("ShizuSU", "ZIPFIND cmd='$cmd'")
+                                com.topjohnwu.superuser.Shell.cmd(cmd).exec()
+                                val size = outFile.length()
+                                val content = if (size > 0) outFile.bufferedReader().readText() else "(empty)"
+                                android.util.Log.e("ShizuSU", "ZIPFIND wrote size=$size content='$content'")
                                 outFile.bufferedReader().readLines()
                                     .filter { it.endsWith(".zip") && it.length > 5 }
                                     .map { path ->
                                         val sizeOut = java.util.ArrayList<String>()
                                         runCatching {
-                                            com.topjohnwu.superuser.Shell.cmd("stat -c %s '$path' 2>/dev/null")
+                                            com.topjohnwu.superuser.Shell.cmd("/system/bin/stat -c %s '$path' 2>/dev/null")
                                                 .to(sizeOut, null).exec()
                                         }
-                                        val size = sizeOut.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
-                                        path to size
+                                        val fsize = sizeOut.firstOrNull()?.trim()?.toLongOrNull() ?: 0L
+                                        path to fsize
                                     }
                                     .sortedByDescending { it.second }
                             }.onFailure { android.util.Log.e("ShizuSU", "ZIPFIND EXC: ${it.message}") }
