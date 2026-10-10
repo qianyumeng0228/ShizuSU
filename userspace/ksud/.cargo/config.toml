@@ -1,0 +1,2 @@
+[target.aarch64-linux-android]
+linker = "F:/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/aarch64-linux-android26-clang.cmd"
