@@ -195,15 +195,19 @@ object XposedRepoDetailFetcher {
             }.onFailure { log("api releases FAIL: ${it.message}") }
         }
 
-        // 3. README zh
-        runCatching {
-            fetchRaw(pkg, "README.md")?.let { extra = extra.copy(readmeZh = it) }
-        }.onFailure { log("README.md FAIL: ${it.message}") }
+        // 3. README zh (skip if enrich already has it — avoid 5x10s mirror timeout chain)
+        if (extra.readmeZh.isBlank()) {
+            runCatching {
+                fetchRaw(pkg, "README.md")?.let { extra = extra.copy(readmeZh = it) }
+            }.onFailure { log("README.md FAIL: ${it.message}") }
+        }
 
-        // 4. README en
-        runCatching {
-            fetchRaw(pkg, "README_EN.md")?.let { extra = extra.copy(readmeEn = it) }
-        }.onFailure { log("README_EN.md FAIL: ${it.message}") }
+        // 4. README en (skip if enrich already has it)
+        if (extra.readmeEn.isBlank()) {
+            runCatching {
+                fetchRaw(pkg, "README_EN.md")?.let { extra = extra.copy(readmeEn = it) }
+            }.onFailure { log("README_EN.md FAIL: ${it.message}") }
+        }
 
         // 4b. Fallback: use local readme from list data if realtime fetch failed
         if (extra.readmeZh.isBlank() && fallbackReadme.isNotBlank()) {
