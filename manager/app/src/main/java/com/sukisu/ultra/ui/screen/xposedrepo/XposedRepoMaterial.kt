@@ -252,6 +252,27 @@ fun XposedRepoScreenMaterial(state: XposedRepoUiState, actions: XposedRepoAction
                                     }
                                 }
                             }
+                            // Load more trigger at end of list
+                            if (state.isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                            } else if (state.currentPage < state.totalPages && filtered.isNotEmpty()) {
+                                item {
+                                    LaunchedEffect(filtered.size) {
+                                        if (filtered.size >= state.currentPage * 30 - 5) {
+                                            actions.onLoadMore()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
