@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -227,25 +228,64 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                             val fileName = "xposed-${mod.name}-${r.tagName}.apk"
                             val st = dlStates[fileName]
                             Card {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text(r.name.ifBlank { r.tagName }, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                                        Text(r.createdAt, fontSize = 12.sp, color = colorScheme.onSurfaceVariantSummary)
+                                Column {
+                                    // Header row: title + tagName (left) + date (right)
+                                    Row(
+                                        verticalAlignment = Alignment.Top,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                                                .weight(1f)
+                                        ) {
+                                            Text(
+                                                text = r.name.ifBlank { r.tagName },
+                                                fontSize = 17.sp,
+                                                fontWeight = FontWeight(550),
+                                                color = colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = r.tagName,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight(550),
+                                                color = colorScheme.onSurfaceVariantSummary,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = r.createdAt,
+                                            fontSize = 12.sp,
+                                            color = colorScheme.onSurfaceVariantSummary,
+                                            modifier = Modifier
+                                                .padding(start = 16.dp, end = 16.dp, top = 16.dp)
+                                        )
                                     }
+                                    // Changelog sections
                                     Spacer(Modifier.height(8.dp))
                                     val body = extra?.releaseBodies?.get(r.tagName) ?: ""
                                     val sections = parseChangelog(body)
                                     if (sections.isNotEmpty()) {
-                                        sections.forEach { sec ->
-                                            Spacer(Modifier.height(4.dp))
-                                            Text(sec.title, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-                                            sec.items.forEach { item ->
-                                                Text("• $item", fontSize = 12.sp, color = colorScheme.onSurfaceVariantSummary)
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+                                            thickness = 0.5.dp,
+                                            color = colorScheme.outline.copy(alpha = 0.5f)
+                                        )
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            sections.forEach { sec ->
+                                                Spacer(Modifier.height(4.dp))
+                                                Text(sec.title, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                                sec.items.forEach { item ->
+                                                    Text("• $item", fontSize = 12.sp, color = colorScheme.onSurfaceVariantSummary)
+                                                }
                                             }
                                         }
-                                        Spacer(Modifier.height(8.dp))
                                     }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Download row
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                                    ) {
                                         Icon(MiuixIcons.FileDownloads, contentDescription = null, tint = colorScheme.onSurfaceVariantSummary)
                                         Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                                             Text(safe(r.downloadUrl.substringAfterLast("/")), fontSize = 13.sp)
@@ -267,6 +307,7 @@ internal fun XposedRepoDetailMiuix(mod: XposedModule, onBack: () -> Unit) {
                                     }
                                 }
                             }
+                            Spacer(Modifier.height(12.dp))
                         }
                     }
                     2 -> {
