@@ -375,9 +375,15 @@ fun ModulePagerMaterial(
                         zipLoading = true
                         withContext(Dispatchers.IO) {
                             runCatching {
-                                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", "find /sdcard -maxdepth 3 -name '*.zip' -type f 2>/dev/null"))
-                                p.inputStream.bufferedReader().readLines()
-                                    .filter { it.endsWith(".zip") }
+                                // Try root first, fall back to direct file listing
+                                val cmd = "find /sdcard -maxdepth 4 -name '*.zip' -type f 2>/dev/null"
+                                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+                                val out = p.inputStream.bufferedReader().readLines()
+                                val err = p.errorStream.bufferedReader().readText()
+                                p.waitFor()
+                                android.util.Log.e("ShizuSU", "ZIPFIND out=${out.size} err='$err'")
+                                out
+                                    .filter { it.endsWith(".zip") && it.length > 5 }
                                     .map { path ->
                                         val size = runCatching {
                                             Runtime.getRuntime().exec(arrayOf("su", "-c", "stat -c %s '$path' 2>/dev/null")).inputStream.bufferedReader().readText().trim().toLongOrNull() ?: 0L
@@ -385,7 +391,8 @@ fun ModulePagerMaterial(
                                         path to size
                                     }
                                     .sortedByDescending { it.second }
-                            }.getOrDefault(emptyList<Pair<String, Long>>())
+                            }.onFailure { android.util.Log.e("ShizuSU", "ZIPFIND EXC: ${it.message}") }
+                                .getOrDefault(emptyList<Pair<String, Long>>())
                                 .let { zipList = it }
                         }
                         zipLoading = false
