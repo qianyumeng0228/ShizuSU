@@ -385,8 +385,15 @@ fun ModulePagerMaterial(
                     expanded = fabExpanded,
                     onClick = {
                         // Select the zip files to install
+                        // Use */* + EXTRA_MIME_TYPES for MIUI compatibility (application/zip alone hides zips in Downloads)
                         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                            type = "application/zip"
+                            type = "*/*"
+                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf(
+                                "application/zip",
+                                "application/x-zip-compressed",
+                                "application/octet-stream",
+                                "application/java-archive"
+                            ))
                             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                         }
                         selectZipLauncher.launch(intent)
