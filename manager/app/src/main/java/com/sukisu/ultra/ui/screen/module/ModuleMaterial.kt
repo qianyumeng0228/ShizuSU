@@ -429,17 +429,13 @@ fun ModulePagerMaterial(
                                             supportingContent = { Text("${"%.1f".format(size / 1024.0 / 1024.0)} MB  $path") },
                                             modifier = Modifier.clickable {
                                                 showZipPicker = false
-                                                // Copy file then navigate to flash screen on main thread
-                                                kotlinx.coroutines.MainScope().launch(Dispatchers.IO) {
-                                                    val src = java.io.File(path)
-                                                    val cacheFile = java.io.File(ctx.cacheDir, "module.zip")
-                                                    src.inputStream().use { input ->
-                                                        cacheFile.outputStream().use { output ->
-                                                            input.copyTo(output)
-                                                        }
-                                                    }
-                                                    withContext(Dispatchers.Main) {
-                                                        actions.onOpenFlash(listOf(android.net.Uri.fromFile(cacheFile)))
+                                                // Pass original file URI directly — no copy needed
+                                                // flashModule handles reading + internal copy
+                                                kotlinx.coroutines.MainScope().launch {
+                                                    try {
+                                                        actions.onOpenFlash(listOf(android.net.Uri.fromFile(java.io.File(path))))
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("ShizuSU", "ZIPPICKER install failed: ${e.message}")
                                                     }
                                                 }
                                             }
