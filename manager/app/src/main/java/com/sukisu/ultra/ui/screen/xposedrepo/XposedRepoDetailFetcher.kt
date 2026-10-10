@@ -202,12 +202,8 @@ object XposedRepoDetailFetcher {
             }.onFailure { log("README.md FAIL: ${it.message}") }
         }
 
-        // 4. README en (skip if enrich already has it)
-        if (extra.readmeEn.isBlank()) {
-            runCatching {
-                fetchRaw(pkg, "README_EN.md")?.let { extra = extra.copy(readmeEn = it) }
-            }.onFailure { log("README_EN.md FAIL: ${it.message}") }
-        }
+        // 4. README en — SKIPPED (not displayed in UI, saves 50s mirror timeout chain)
+        // readmeEn is unused in UI; removing this avoids 5x10s timeout when enrich lacks EN readme.
 
         // 4b. Fallback: use local readme from list data if realtime fetch failed
         if (extra.readmeZh.isBlank() && fallbackReadme.isNotBlank()) {
