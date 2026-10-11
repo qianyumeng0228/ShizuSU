@@ -206,6 +206,29 @@ fun ModulePagerMiuix(
 
     val shortcutState = rememberModuleShortcutState(context)
     val showShortcutDialog = remember { mutableStateOf(false) }
+    val showRebootDialog = remember { mutableStateOf(false) }
+    val rebootDialogMessage = remember { mutableStateOf("") }
+
+    // Reboot confirmation dialog
+    val rebootDialog = rememberConfirmDialog(
+        onConfirm = {
+            showRebootDialog.value = false
+            val softReboot = isSoftRebootPreferred()
+            reboot(if (softReboot) "soft_reboot" else "")
+        },
+        onDismiss = { showRebootDialog.value = false },
+    )
+
+    LaunchedEffect(showRebootDialog.value) {
+        if (showRebootDialog.value) {
+            rebootDialog.showConfirm(
+                title = rebootDialogMessage.value,
+                content = context.getString(R.string.reboot_to_apply),
+                confirm = context.getString(R.string.reboot),
+                dismiss = context.getString(android.R.string.cancel),
+            )
+        }
+    }
 
     val pickShortcutIconLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -237,19 +260,12 @@ fun ModulePagerMiuix(
             is ModuleEffect.SnackBar -> {
                 // Miuix SnackbarHost doesn't render properly, use Toast instead
                 android.widget.Toast.makeText(context, event.message, android.widget.Toast.LENGTH_LONG).show()
-                // Also try snackbar (may or may not render)
-                snackbarJob.value?.cancel()
-                val softReboot = isSoftRebootPreferred()
-                snackbarJob.value = scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        message = event.message,
-                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
-                        duration = SnackbarDuration.Long,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        reboot(if (softReboot) "soft_reboot" else "")
-                    }
-                }
+            }
+
+            is ModuleEffect.RebootConfirm -> {
+                // Show reboot confirmation dialog
+                showRebootDialog.value = true
+                rebootDialogMessage.value = event.message
             }
         }
     }

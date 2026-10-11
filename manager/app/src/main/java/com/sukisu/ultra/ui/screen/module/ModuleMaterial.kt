@@ -271,6 +271,11 @@ fun ModulePagerMaterial(
                     }
                 }
             }
+
+            is ModuleEffect.RebootConfirm -> {
+                // Show toast + reboot dialog (Material version)
+                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

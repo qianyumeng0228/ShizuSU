@@ -397,19 +397,16 @@ class ModuleViewModel(
             val res = ksuApp.resources
             // Close dialog immediately
             _uiState.update { it.copy(confirmDialogState = null) }
-            // Emit snackbar immediately (before any IO)
-            emitEffect(
-                ModuleEffect.SnackBar(
-                    res.getString(R.string.module_uninstall_success).format(module.name)
-                )
-            )
             val success = withContext(Dispatchers.IO) {
                 uninstallModuleUtil(module.id)
             }
             if (success) {
+                // Show success message + reboot dialog
+                val msg = res.getString(R.string.module_uninstall_success).format(module.name)
+                emitEffect(ModuleEffect.Toast(msg))
+                emitEffect(ModuleEffect.RebootConfirm(msg))
                 fetchModuleList(checkUpdate = true, resort = false)
             } else {
-                // Emit failure snackbar if uninstall failed
                 emitEffect(
                     ModuleEffect.SnackBar(
                         res.getString(R.string.module_uninstall_failed).format(module.name)

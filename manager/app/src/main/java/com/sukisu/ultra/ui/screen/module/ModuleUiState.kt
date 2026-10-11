@@ -37,6 +37,10 @@ sealed interface ModuleEffect {
     data class SnackBar(
         val message: String,
     ) : ModuleEffect
+
+    data class RebootConfirm(
+        val message: String,
+    ) : ModuleEffect
 }
 
 @Immutable
