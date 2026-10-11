@@ -138,21 +138,10 @@ object XposedRepoDetailFetcher {
             }
         }.onFailure { log("enrich FAIL: ${it.message}") }
 
-        // 1. GitHub repo metadata (fallback if enrich missing stars/issues)
-        if (extra.stars == 0 || extra.issues < 0) {
-            runCatching {
-                val req = Request.Builder().url("$apiBase").header("User-Agent", "ShizuSU").build()
-                client.newCall(req).execute().use { resp ->
-                    log("api repo -> ${resp.code}")
-                    if (resp.isSuccessful) {
-                        val j = JSONObject(resp.body.string())
-                        val newStars = if (extra.stars == 0) j.optInt("stargazers_count", 0) else extra.stars
-                        val newIssues = if (extra.issues < 0) j.optInt("open_issues_count", 0) else extra.issues
-                        extra = extra.copy(stars = newStars, issues = newIssues)
-                    }
-                }
-            }.onFailure { log("api repo FAIL: ${it.message}") }
-        }
+        // 1. GitHub repo metadata — SKIPPED (enrich already has openIssues; stars not displayed in UI)
+        // This saves ~2s of API call when enrich data is available.
+        // Uncomment below if stars display is needed in future.
+        // if (extra.stars == 0 || extra.issues < 0) { ... }
 
         // 2. Releases (fallback if enrich has no release list)
         if (extra.releasesFull.isEmpty()) {
@@ -217,12 +206,11 @@ object XposedRepoDetailFetcher {
             extra = extra.copy(readmeZh = fallbackReadme)
         }
 
-        // 5. Icon (candidate filenames × 3 mirrors)
+        // 5. Icon (candidate filenames × 3 mirrors) — 1.5s total budget
         runCatching {
             val iconNames = listOf(
-                "icon_$pkg.png",
                 "icon.png",
-                "icon_${pkg.substringAfterLast('.')}.png",
+                "icon_$pkg.png",
                 "icon_${pkg.substringAfterLast('.').lowercase()}.png",
             )
             val mirrors = listOf(
@@ -233,9 +221,9 @@ object XposedRepoDetailFetcher {
             val iconStart = System.currentTimeMillis()
             outer@ for (name in iconNames) {
                 for (base in mirrors) {
-                    // Time budget: stop after 2s total for icon detection
-                    if (System.currentTimeMillis() - iconStart > 2000L) {
-                        log("icon budget exceeded (2s), skipping remaining candidates")
+                    // Time budget: stop after 1.5s total for icon detection
+                    if (System.currentTimeMillis() - iconStart > 1500L) {
+                        log("icon budget exceeded (1.5s), skipping remaining candidates")
                         break@outer
                     }
                     val u = "$base$name"
