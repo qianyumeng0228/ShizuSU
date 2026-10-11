@@ -221,9 +221,9 @@ object XposedRepoDetailFetcher {
             val iconStart = System.currentTimeMillis()
             outer@ for (name in iconNames) {
                 for (base in mirrors) {
-                    // Time budget: stop after 1.5s total for icon detection
-                    if (System.currentTimeMillis() - iconStart > 1500L) {
-                        log("icon budget exceeded (1.5s), skipping remaining candidates")
+                    // Time budget: stop after 1s total for icon detection
+                    if (System.currentTimeMillis() - iconStart > 1000L) {
+                        log("icon budget exceeded (1s), skipping remaining candidates")
                         break@outer
                     }
                     val u = "$base$name"
