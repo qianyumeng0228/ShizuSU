@@ -31,6 +31,12 @@ object XposedRepoDetailFetcher {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
+    // Fast client for icon detection (2s timeout — avoid 10s per-request timeouts)
+    private val iconClient = OkHttpClient.Builder()
+        .connectTimeout(2, TimeUnit.SECONDS)
+        .readTimeout(2, TimeUnit.SECONDS)
+        .build()
+
     private fun log(msg: String) = android.util.Log.e("XposedDetail", msg)
 
     /** Try multiple mirrors, return body string or null */
@@ -235,7 +241,7 @@ object XposedRepoDetailFetcher {
                     val u = "$base$name"
                     runCatching {
                         val req = Request.Builder().url(u).build()
-                        client.newCall(req).execute().use { resp ->
+                        iconClient.newCall(req).execute().use { resp ->
                             log("icon $u -> ${resp.code}")
                             if (resp.isSuccessful) { extra = extra.copy(iconUrl = u); break@outer }
                         }

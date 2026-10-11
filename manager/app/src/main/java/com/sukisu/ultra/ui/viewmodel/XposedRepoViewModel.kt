@@ -36,8 +36,8 @@ class XposedRepoViewModel : ViewModel() {
     companion object {
         private const val TAG = "XposedRepoVm"
         private val URLS = listOf(
-            "https://backup.modules.lsposed.org/modules.json",
             "https://qianyumeng0228.github.io/ShizuSU-Xposed/modules.json",
+            "https://backup.modules.lsposed.org/modules.json",
             "https://raw.githubusercontent.com/qianyumeng0228/ShizuSU/main/docs/xposed/modules.json",
             "https://modules.lsposed.org/modules.json",
         )
