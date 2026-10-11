@@ -23,6 +23,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.TextButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.animation.slideOutHorizontally
@@ -178,6 +179,9 @@ fun ModulePagerMiuix(
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    // Custom snackbar state (fallback for Miuix SnackbarHost rendering issues)
+    val customSnackbarMessage = remember { mutableStateOf<String?>(null) }
+    val customSnackbarAction = remember { mutableStateOf<(() -> Unit)?>(null) }
     val density = LocalDensity.current
     val enableBlur = LocalEnableBlur.current
 
@@ -261,18 +265,26 @@ fun ModulePagerMiuix(
 
             is ModuleEffect.SnackBar -> {
                 android.util.Log.d("ModuleEvent", "branch: SnackBar")
-                // Cancel previous snackbar job
-                snackbarJob.value?.cancel()
+                // Show custom snackbar (reliable rendering)
+                customSnackbarMessage.value = event.message
                 val softReboot = isSoftRebootPreferred()
+                customSnackbarAction.value = {
+                    reboot(if (softReboot) "soft_reboot" else "")
+                    customSnackbarMessage.value = null
+                }
+                // Auto-dismiss after 4 seconds
+                scope.launch {
+                    delay(4000)
+                    customSnackbarMessage.value = null
+                }
+                // Also try Miuix snackbar (in case it works)
+                snackbarJob.value?.cancel()
                 snackbarJob.value = scope.launch {
-                    val result = snackbarHostState.showSnackbar(
+                    snackbarHostState.showSnackbar(
                         message = event.message,
                         actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
                         duration = SnackbarDuration.Short,
                     )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        reboot(if (softReboot) "soft_reboot" else "")
-                    }
                 }
             }
 
@@ -667,6 +679,42 @@ fun ModulePagerMiuix(
                             contentPadding = contentPadding,
                             listState = listState,
                         )
+                    }
+                }
+            }
+        }
+        // Custom snackbar overlay (reliable fallback for Miuix SnackbarHost)
+        customSnackbarMessage.value?.let { message ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 24.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = Color(0xFF323232),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = message,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f)
+                        )
+                        customSnackbarAction.value?.let { action ->
+                            TextButton(onClick = action) {
+                                Text(
+                                    text = stringResource(R.string.reboot),
+                                    color = Color(0xFFFFC107)
+                                )
+                            }
+                        }
                     }
                 }
             }
