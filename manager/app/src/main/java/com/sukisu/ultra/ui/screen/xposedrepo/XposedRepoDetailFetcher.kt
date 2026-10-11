@@ -60,14 +60,21 @@ object XposedRepoDetailFetcher {
                 val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
                 client.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful) {
-                        val j = org.json.JSONObject(resp.body.string())
-                        // Check response status
-                        val responseStatus = j.optString("responseStatus", "")
-                        if (responseStatus != "200" && responseStatus != "200 OK") {
+                        val body = resp.body.string()
+                        log("translate response: ${body.take(200)}")
+                        val j = org.json.JSONObject(body)
+                        // responseStatus can be Integer 200 or String "200"
+                        val responseStatus = j.opt("responseStatus")?.toString() ?: ""
+                        log("translate status: '$responseStatus'")
+                        if (!responseStatus.startsWith("200")) {
                             log("translate error: status=$responseStatus")
-                            return null  // Error — don't use partial translation
+                            return null
                         }
                         val result = j.optJSONObject("responseData")?.optString("translatedText", "") ?: ""
+                        if (result.isBlank()) {
+                            log("translate empty result")
+                            return null
+                        }
                         // Don't render error strings as translation
                         if (result.contains("QUERY LENGTH LIMIT") || result.contains("INVALID")) {
                             log("translate error string detected: $result")
@@ -83,7 +90,7 @@ object XposedRepoDetailFetcher {
             }
             translated.toString().ifBlank { null }
         } catch (e: Exception) {
-            log("translate FAIL: ${e.message}")
+            log("translate FAIL: ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
