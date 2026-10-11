@@ -41,6 +41,55 @@ object XposedRepoDetailFetcher {
 
     private fun log(msg: String) = android.util.Log.e("XposedDetail", msg)
 
+    /** Check if text has CJK characters (Chinese/Japanese/Korean) */
+    private fun hasCjk(text: String): Boolean {
+        return text.any { it in '\u4e00'..'\u9fff' }
+    }
+
+    /** Translate English text to Chinese via MyMemory API (free, no key needed) */
+    private fun translateToChinese(text: String): String? {
+        return try {
+            // Split into chunks of 4000 chars (API limit)
+            val chunks = text.chunked(4000)
+            val translated = StringBuilder()
+            for (chunk in chunks) {
+                val url = "https://api.mymemory.translated.net/get?q=" +
+                    java.net.URLEncoder.encode(chunk, "UTF-8") +
+                    "&langpair=en|zh-CN"
+                val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                client.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val j = org.json.JSONObject(resp.body.string())
+                        val result = j.optJSONObject("responseData")?.optString("translatedText", "") ?: ""
+                        translated.append(result)
+                    }
+                }
+                Thread.sleep(200) // Rate limit
+            }
+            translated.toString().ifBlank { null }
+        } catch (e: Exception) {
+            log("translate FAIL: ${e.message}")
+            null
+        }
+    }
+
+    /** Ensure readmeZh is Chinese: if not CJK, translate via MyMemory */
+    private fun ensureChineseReadme(readmeZh: String): String {
+        if (readmeZh.isBlank()) return readmeZh
+        if (hasCjk(readmeZh)) {
+            log("readme already has CJK, no translation needed")
+            return readmeZh
+        }
+        log("readme is English, translating to Chinese...")
+        val translated = translateToChinese(readmeZh)
+        if (translated != null && translated.isNotBlank()) {
+            log("translation OK: ${readmeZh.length} -> ${translated.length} chars")
+            return translated
+        }
+        log("translation failed, fallback to original")
+        return readmeZh
+    }
+
     /** Try multiple mirrors, return body string or null */
     private fun fetchRaw(pkg: String, file: String): String? {
         val base = "Xposed-Modules-Repo/$pkg/main/$file"
@@ -259,7 +308,9 @@ object XposedRepoDetailFetcher {
             }.onFailure { log("contributors FAIL: ${it.message}") }
         }
 
-        val zh = extra.readmeZh
+        // Translate English README to Chinese (MyMemory API)
+        val zh = ensureChineseReadme(extra.readmeZh)
+        extra = extra.copy(readmeZh = zh)
         val en = extra.readmeEn
 
         // 6. Parse badges from README
