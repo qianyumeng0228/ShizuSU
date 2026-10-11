@@ -398,9 +398,7 @@ class ModuleViewModel(
             val success = withContext(Dispatchers.IO) {
                 uninstallModuleUtil(module.id)
             }
-            if (success) {
-                fetchModuleList(checkUpdate = true, resort = false)
-            }
+            // Emit snackbar first (before list refresh) so it shows immediately
             _uiState.update { it.copy(confirmDialogState = null) }
             emitEffect(
                 ModuleEffect.SnackBar(
@@ -409,6 +407,9 @@ class ModuleViewModel(
                     ).format(module.name)
                 )
             )
+            if (success) {
+                fetchModuleList(checkUpdate = true, resort = false)
+            }
         }
     }
 
@@ -418,9 +419,6 @@ class ModuleViewModel(
             val success = withContext(Dispatchers.IO) {
                 undoUninstallModuleUtil(module.id)
             }
-            if (success) {
-                fetchModuleList(checkUpdate = true, resort = false)
-            }
             emitEffect(
                 ModuleEffect.SnackBar(
                     res.getString(
@@ -428,6 +426,9 @@ class ModuleViewModel(
                     ).format(module.name)
                 )
             )
+            if (success) {
+                fetchModuleList(checkUpdate = true, resort = false)
+            }
         }
     }
 
