@@ -402,13 +402,12 @@ class ModuleViewModel(
                 fetchModuleList(checkUpdate = true, resort = false)
             }
             _uiState.update { it.copy(confirmDialogState = null) }
-            emitEffect(
-                ModuleEffect.SnackBar(
-                    res.getString(
-                        if (success) R.string.module_uninstall_success else R.string.module_uninstall_failed
-                    ).format(module.name)
-                )
-            )
+            // Emit Toast + RebootConfirm (proven working at 52b0f5b8)
+            val msg = res.getString(
+                if (success) R.string.module_uninstall_success else R.string.module_uninstall_failed
+            ).format(module.name)
+            emitEffect(ModuleEffect.Toast(msg))
+            emitEffect(ModuleEffect.RebootConfirm(msg))
         }
     }
 
@@ -421,8 +420,9 @@ class ModuleViewModel(
             if (success) {
                 fetchModuleList(checkUpdate = true, resort = false)
             }
+            // Emit Toast only (undo doesn't need reboot)
             emitEffect(
-                ModuleEffect.SnackBar(
+                ModuleEffect.Toast(
                     res.getString(
                         if (success) R.string.module_undo_uninstall_success else R.string.module_undo_uninstall_failed
                     ).format(module.name)

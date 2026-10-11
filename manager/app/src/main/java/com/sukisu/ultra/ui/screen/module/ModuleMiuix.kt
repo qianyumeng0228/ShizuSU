@@ -276,9 +276,21 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.RebootConfirm -> {
+                // Show toast (reliable feedback)
+                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 // Show reboot confirmation dialog
                 showRebootDialog.value = true
                 rebootDialogMessage.value = event.message
+                // Also try to show snackbar (if Miuix API works)
+                snackbarJob.value?.cancel()
+                val softReboot = isSoftRebootPreferred()
+                snackbarJob.value = scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
+                        duration = SnackbarDuration.Short,
+                    )
+                }
             }
         }
     }
