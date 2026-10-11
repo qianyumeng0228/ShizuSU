@@ -403,11 +403,11 @@ class ModuleViewModel(
                 fetchModuleList(checkUpdate = true, resort = false)
             }
             _uiState.update { it.copy(confirmDialogState = null) }
-            // Emit Toast + RebootConfirm (proven working at 52b0f5b8)
             val msg = res.getString(
                 if (success) R.string.module_uninstall_success else R.string.module_uninstall_failed
             ).format(module.name)
-            emitEffect(ModuleEffect.Toast(msg))
+            // Emit SnackBar (primary feedback) + RebootConfirm (fallback dialog)
+            emitEffect(ModuleEffect.SnackBar(msg))
             emitEffect(ModuleEffect.RebootConfirm(msg))
         }
     }
