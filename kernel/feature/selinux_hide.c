@@ -63,7 +63,8 @@ static write_op_fn *selinux_write_op;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 static int security_context_to_sid_with_policy(struct selinux_policy *policy, const char *scontext, u32 scontext_len,
-                                               u32 *sid, u32 def_sid, gfp_t gfp_flags);
+                                               u32 *sid, u32 def_sid, gfp_t gfp_flags, u32 *orig_sid_p,
+                                               int *orig_rc_p);
 static int security_sid_to_context_with_policy(struct selinux_policy *policy, u32 sid, char **scontext,
                                                u32 *scontext_len);
 static void security_compute_av_user_with_policy(struct selinux_policy *policy, u32 ssid, u32 tsid, u16 tclass,
@@ -94,7 +95,8 @@ static ssize_t my_write_context(struct file *file, char *buf, size_t size)
     length = avc_has_perm(current_sid(), SECINITSID_SECURITY, SECCLASS_SECURITY, SECURITY__CHECK_CONTEXT, NULL);
     if (length)
         goto out;
-    length = security_context_to_sid_with_policy(backup_sepolicy, buf, size, &sid, SECSID_NULL, GFP_KERNEL);
+    length = security_context_to_sid_with_policy(backup_sepolicy, buf, size, &sid, SECSID_NULL, GFP_KERNEL, NULL,
+                                                 NULL);
     if (length)
         goto out;
 
@@ -167,11 +169,13 @@ static ssize_t my_write_access(struct file *file, char *buf, size_t size)
         goto out;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
-    length = security_context_to_sid_with_policy(backup_sepolicy, scon, strlen(scon), &ssid, SECSID_NULL, GFP_KERNEL);
+    length = security_context_to_sid_with_policy(backup_sepolicy, scon, strlen(scon), &ssid, SECSID_NULL,
+                                                 GFP_KERNEL, NULL, NULL);
     if (length)
         goto out;
 
-    length = security_context_to_sid_with_policy(backup_sepolicy, tcon, strlen(tcon), &tsid, SECSID_NULL, GFP_KERNEL);
+    length = security_context_to_sid_with_policy(backup_sepolicy, tcon, strlen(tcon), &tsid, SECSID_NULL,
+                                                 GFP_KERNEL, NULL, NULL);
     if (length)
         goto out;
 
@@ -231,7 +235,8 @@ static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
             size--;
         }
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
-        error = security_context_to_sid_with_policy(backup_sepolicy, str, size, &sid, SECSID_NULL, GFP_KERNEL);
+        error = security_context_to_sid_with_policy(backup_sepolicy, str, size, &sid, SECSID_NULL, GFP_KERNEL,
+                                                    NULL, NULL);
 #else
         error = security_context_to_sid(&fake_state, str, size, &sid, GFP_KERNEL);
 #endif
@@ -541,20 +546,22 @@ void ksu_selinux_hide_drop_backup_if_unused()
 /*
  * Caveat:  Mutates scontext.
  */
-static int string_to_context_struct(struct policydb *pol, struct sidtab *sidtabp, char *scontext, struct context *ctx,
-                                    u32 def_sid)
+static int string_to_context_struct(struct policydb *pol, struct policydb *orig_pol, struct sidtab *sidtabp,
+                                    struct sidtab *orig_sidtabp, char *scontext, const char *source, u32 source_len,
+                                    struct context *ctx, struct context *orig_ctx, u32 def_sid, int *orig_rc_p)
 {
-    struct role_datum *role;
-    struct type_datum *typdatum;
-    struct user_datum *usrdatum;
+    struct role_datum *role, *orig_role;
+    struct type_datum *typdatum, *orig_typdatum;
+    struct user_datum *usrdatum, *orig_usrdatum;
     char *scontextp, *p, oldc;
-    int rc = 0;
+    bool orig_valid = true;
+    int rc = -EINVAL, orig_rc = -EINVAL;
 
     context_init(ctx);
+    context_init(orig_ctx);
 
-    /* Parse the security context. */
-
-    rc = -EINVAL;
+    // split fields once
+    // look up both policies
     scontextp = scontext;
 
     /* Extract the user. */
@@ -568,10 +575,15 @@ static int string_to_context_struct(struct policydb *pol, struct sidtab *sidtabp
     *p++ = 0;
 
     usrdatum = symtab_search(&pol->p_users, scontextp);
+    orig_usrdatum = symtab_search(&orig_pol->p_users, scontextp);
     if (!usrdatum)
         goto out;
 
     ctx->user = usrdatum->value;
+    if (orig_usrdatum)
+        orig_ctx->user = orig_usrdatum->value;
+    else
+        orig_valid = false;
 
     /* Extract role. */
     scontextp = p;
@@ -584,9 +596,14 @@ static int string_to_context_struct(struct policydb *pol, struct sidtab *sidtabp
     *p++ = 0;
 
     role = symtab_search(&pol->p_roles, scontextp);
+    orig_role = symtab_search(&orig_pol->p_roles, scontextp);
     if (!role)
         goto out;
     ctx->role = role->value;
+    if (orig_role)
+        orig_ctx->role = orig_role->value;
+    else
+        orig_valid = false;
 
     /* Extract type. */
     scontextp = p;
@@ -596,34 +613,56 @@ static int string_to_context_struct(struct policydb *pol, struct sidtab *sidtabp
     *p++ = 0;
 
     typdatum = symtab_search(&pol->p_types, scontextp);
+    orig_typdatum = symtab_search(&orig_pol->p_types, scontextp);
     if (!typdatum || typdatum->attribute)
         goto out;
 
     ctx->type = typdatum->value;
+    if (orig_typdatum && !orig_typdatum->attribute)
+        orig_ctx->type = orig_typdatum->value;
+    else
+        orig_valid = false;
 
     rc = mls_context_to_sid(pol, oldc, p, ctx, sidtabp, def_sid);
-    if (rc)
-        goto out;
+    if (orig_valid) {
+        if (oldc) {
+            size_t offset = p - scontext;
 
-    /* Check the validity of the new context. */
-    rc = -EINVAL;
-    if (!policydb_context_isvalid(pol, ctx))
-        goto out;
-    rc = 0;
+            // restore MLS suffix for live policy
+            memcpy(p, source + offset, source_len - offset);
+            p[source_len - offset] = '\0';
+        }
+        // validate live context with live policy
+        orig_rc = mls_context_to_sid(orig_pol, oldc, p, orig_ctx, orig_sidtabp, def_sid);
+        if (!orig_rc && !policydb_context_isvalid(orig_pol, orig_ctx))
+            orig_rc = -EINVAL;
+    }
+
+    if (!rc && !policydb_context_isvalid(pol, ctx))
+        rc = -EINVAL;
 out:
-    if (rc)
+    if (rc) {
         context_destroy(ctx);
+        // ignore live result if backup fails
+        orig_rc = -EINVAL;
+    }
+    if (rc || orig_rc)
+        context_destroy(orig_ctx);
+    *orig_rc_p = orig_rc;
     return rc;
 }
 
 static int security_context_to_sid_with_policy(struct selinux_policy *policy, const char *scontext, u32 scontext_len,
-                                               u32 *sid, u32 def_sid, gfp_t gfp_flags)
+                                               u32 *sid, u32 def_sid, gfp_t gfp_flags, u32 *orig_sid_p,
+                                               int *orig_rc_p)
 {
-    struct policydb *policydb;
-    struct sidtab *sidtab;
-    char *scontext2, *str = NULL;
-    struct context context;
-    int rc = 0;
+    struct selinux_policy *orig_policy;
+    struct policydb *policydb, *orig_policydb;
+    struct sidtab *sidtab, *orig_sidtab;
+    char *scontext2;
+    struct context context, orig_context;
+    int rc = 0, orig_rc = -EINVAL;
+    u32 orig_sid;
 
     /* An empty security context is never valid. */
     if (!scontext_len)
@@ -638,21 +677,53 @@ static int security_context_to_sid_with_policy(struct selinux_policy *policy, co
     *sid = SECSID_NULL;
 
     // removed: if (force)
-    // removed: rcu lock
+retry:
+    rcu_read_lock();
     policydb = &policy->policydb;
     sidtab = policy->sidtab;
-    rc = string_to_context_struct(policydb, sidtab, scontext2, &context, def_sid);
+    orig_policy = rcu_dereference(selinux_state.policy);
+    orig_policydb = &orig_policy->policydb;
+    orig_sidtab = orig_policy->sidtab;
+
+    // parse both policies together
+    orig_rc = -EINVAL;
+    rc = string_to_context_struct(policydb, orig_policydb, sidtab, orig_sidtab, scontext2, scontext, scontext_len,
+                                  &context, &orig_context, def_sid, &orig_rc);
     if (rc)
-        goto out;
+        goto out_unlock;
+
+    // update backup sidtab first
     rc = sidtab_context_to_sid(sidtab, &context, sid);
-    // rc should not be frozen
-    if (rc)
-        goto out;
-    // removed: if (rc == -ESTALE)
     context_destroy(&context);
-out:
+    if (rc) {
+        if (!orig_rc)
+            context_destroy(&orig_context);
+        // backup sidtab is not reloaded
+        orig_rc = rc;
+        goto out_unlock;
+    }
+
+    if (orig_rc)
+        goto out_unlock;
+
+    // only sync valid contexts
+    // sync to live sidtab
+    orig_rc = sidtab_context_to_sid(orig_sidtab, &orig_context, &orig_sid);
+    context_destroy(&orig_context);
+    if (!orig_rc && orig_sid_p)
+        *orig_sid_p = orig_sid;
+    if (orig_rc == -ESTALE) {
+        // retry after live policy reload
+        rcu_read_unlock();
+        memcpy(scontext2, scontext, scontext_len);
+        scontext2[scontext_len] = '\0';
+        goto retry;
+    }
+out_unlock:
+    rcu_read_unlock();
+    if (orig_rc_p)
+        *orig_rc_p = orig_rc;
     kfree(scontext2);
-    kfree(str);
     return rc;
 }
 
