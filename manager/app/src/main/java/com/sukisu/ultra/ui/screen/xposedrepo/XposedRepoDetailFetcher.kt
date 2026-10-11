@@ -46,11 +46,12 @@ object XposedRepoDetailFetcher {
         return text.any { it in '\u4e00'..'\u9fff' }
     }
 
-    /** Translate English text to Chinese via MyMemory API (free, no key needed) */
-    private fun translateToChinese(text: String): String? {
+    /** Translate English text to Chinese via MyMemory API (free, no key needed)
+     *  Chunk size: 500 chars (MyMemory limit)
+     *  Returns null on failure — caller should fallback to original */
+    fun translateToChinese(text: String): String? {
         return try {
-            // Split into chunks of 4000 chars (API limit)
-            val chunks = text.chunked(4000)
+            val chunks = text.chunked(500)  // MyMemory limit: 500 chars per request
             val translated = StringBuilder()
             for (chunk in chunks) {
                 val url = "https://api.mymemory.translated.net/get?q=" +
@@ -60,11 +61,25 @@ object XposedRepoDetailFetcher {
                 client.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful) {
                         val j = org.json.JSONObject(resp.body.string())
+                        // Check response status
+                        val responseStatus = j.optString("responseStatus", "")
+                        if (responseStatus != "200" && responseStatus != "200 OK") {
+                            log("translate error: status=$responseStatus")
+                            return null  // Error — don't use partial translation
+                        }
                         val result = j.optJSONObject("responseData")?.optString("translatedText", "") ?: ""
+                        // Don't render error strings as translation
+                        if (result.contains("QUERY LENGTH LIMIT") || result.contains("INVALID")) {
+                            log("translate error string detected: $result")
+                            return null
+                        }
                         translated.append(result)
+                    } else {
+                        log("translate HTTP ${resp.code}")
+                        return null
                     }
                 }
-                Thread.sleep(200) // Rate limit
+                Thread.sleep(150) // Rate limit
             }
             translated.toString().ifBlank { null }
         } catch (e: Exception) {
@@ -73,21 +88,9 @@ object XposedRepoDetailFetcher {
         }
     }
 
-    /** Ensure readmeZh is Chinese: if not CJK, translate via MyMemory */
-    private fun ensureChineseReadme(readmeZh: String): String {
-        if (readmeZh.isBlank()) return readmeZh
-        if (hasCjk(readmeZh)) {
-            log("readme already has CJK, no translation needed")
-            return readmeZh
-        }
-        log("readme is English, translating to Chinese...")
-        val translated = translateToChinese(readmeZh)
-        if (translated != null && translated.isNotBlank()) {
-            log("translation OK: ${readmeZh.length} -> ${translated.length} chars")
-            return translated
-        }
-        log("translation failed, fallback to original")
-        return readmeZh
+    /** Check if text needs translation (no CJK = English) */
+    fun needsTranslation(text: String): Boolean {
+        return text.isNotBlank() && !hasCjk(text)
     }
 
     /** Try multiple mirrors, return body string or null */
@@ -308,9 +311,8 @@ object XposedRepoDetailFetcher {
             }.onFailure { log("contributors FAIL: ${it.message}") }
         }
 
-        // Translate English README to Chinese (MyMemory API)
-        val zh = ensureChineseReadme(extra.readmeZh)
-        extra = extra.copy(readmeZh = zh)
+        // Use readme as-is — async translation handled in UI layer
+        val zh = extra.readmeZh
         val en = extra.readmeEn
 
         // 6. Parse badges from README
