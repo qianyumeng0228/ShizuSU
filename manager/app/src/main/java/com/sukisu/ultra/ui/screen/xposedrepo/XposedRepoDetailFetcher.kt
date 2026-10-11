@@ -224,8 +224,14 @@ object XposedRepoDetailFetcher {
                 "https://cdn.jsdelivr.net/gh/Xposed-Modules-Repo/$pkg@main/",
                 "https://ghproxy.net/https://raw.githubusercontent.com/Xposed-Modules-Repo/$pkg/main/",
             )
+            val iconStart = System.currentTimeMillis()
             outer@ for (name in iconNames) {
                 for (base in mirrors) {
+                    // Time budget: stop after 2s total for icon detection
+                    if (System.currentTimeMillis() - iconStart > 2000L) {
+                        log("icon budget exceeded (2s), skipping remaining candidates")
+                        break@outer
+                    }
                     val u = "$base$name"
                     runCatching {
                         val req = Request.Builder().url(u).build()
