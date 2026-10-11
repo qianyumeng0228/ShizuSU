@@ -395,20 +395,26 @@ class ModuleViewModel(
     fun uninstallModule(module: Module) {
         viewModelScope.launch {
             val res = ksuApp.resources
+            // Close dialog immediately
+            _uiState.update { it.copy(confirmDialogState = null) }
+            // Emit snackbar immediately (before any IO)
+            emitEffect(
+                ModuleEffect.SnackBar(
+                    res.getString(R.string.module_uninstall_success).format(module.name)
+                )
+            )
             val success = withContext(Dispatchers.IO) {
                 uninstallModuleUtil(module.id)
             }
-            // Emit snackbar first (before list refresh) so it shows immediately
-            _uiState.update { it.copy(confirmDialogState = null) }
-            emitEffect(
-                ModuleEffect.SnackBar(
-                    res.getString(
-                        if (success) R.string.module_uninstall_success else R.string.module_uninstall_failed
-                    ).format(module.name)
-                )
-            )
             if (success) {
                 fetchModuleList(checkUpdate = true, resort = false)
+            } else {
+                // Emit failure snackbar if uninstall failed
+                emitEffect(
+                    ModuleEffect.SnackBar(
+                        res.getString(R.string.module_uninstall_failed).format(module.name)
+                    )
+                )
             }
         }
     }
@@ -416,18 +422,23 @@ class ModuleViewModel(
     fun undoUninstallModule(module: Module) {
         viewModelScope.launch {
             val res = ksuApp.resources
+            // Emit snackbar immediately
+            emitEffect(
+                ModuleEffect.SnackBar(
+                    res.getString(R.string.module_undo_uninstall_success).format(module.name)
+                )
+            )
             val success = withContext(Dispatchers.IO) {
                 undoUninstallModuleUtil(module.id)
             }
-            emitEffect(
-                ModuleEffect.SnackBar(
-                    res.getString(
-                        if (success) R.string.module_undo_uninstall_success else R.string.module_undo_uninstall_failed
-                    ).format(module.name)
-                )
-            )
             if (success) {
                 fetchModuleList(checkUpdate = true, resort = false)
+            } else {
+                emitEffect(
+                    ModuleEffect.SnackBar(
+                        res.getString(R.string.module_undo_uninstall_failed).format(module.name)
+                    )
+                )
             }
         }
     }
