@@ -17,7 +17,9 @@ data class ModuleDetail(
     val releases: List<ReleaseInfo>,
     val homepageUrl: String,
     val sourceUrl: String,
-    val url: String
+    val url: String,
+    val origin: String = "",
+    val note: String = ""
 )
 
 data class ReleaseInfo(
@@ -140,7 +142,9 @@ fun fetchModuleDetail(moduleId: String): ModuleDetail? {
                 releases = releases,
                 homepageUrl = homepageUrl,
                 sourceUrl = sourceUrl,
-                url = url
+                url = url,
+                origin = obj.optString("origin", ""),
+                note = obj.optString("note", "")
             )
         }
     }.getOrNull()

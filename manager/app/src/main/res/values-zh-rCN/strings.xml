@@ -37,6 +37,9 @@
     <string name="module_repos_sort_name">名称</string>
     <string name="module_repos_sort_stars">星标数</string>
     <string name="module_repos_source_code">源码</string>
+    <string name="module_note">备注</string>
+    <string name="module_origin_label">改造来源</string>
+    <string name="module_note_label">说明</string>
     <string name="module_repo_upload">上传</string>
     <string name="module_repo_upload_title">提交模块</string>
     <string name="module_repo_upload_source">来源</string>

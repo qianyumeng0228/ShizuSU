@@ -41,6 +41,8 @@ data class ModuleRepoDetailUiState(
     val detailReleases: List<ReleaseArg>,
     val webUrl: String,
     val sourceUrl: String,
+    val origin: String = "",
+    val note: String = "",
 )
 
 @Immutable

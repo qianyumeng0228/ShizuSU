@@ -92,6 +92,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import android.widget.Toast
+import com.sukisu.ultra.ksuApp
+import com.sukisu.ultra.ui.util.module.ModuleSignatureVerifier
 import kotlinx.coroutines.launch
 import com.sukisu.ultra.R
 import com.sukisu.ultra.data.model.RepoModule
@@ -490,7 +493,9 @@ fun ModuleRepoDetailScreenMaterial(
                         uriHandler = object : UriHandler {
                             override fun openUri(uri: String) = actions.onOpenUrl(uri)
                         },
-                        sourceUrl = state.sourceUrl
+                        sourceUrl = state.sourceUrl,
+                        origin = state.origin,
+                        note = state.note
                     )
                 }
             }
@@ -729,8 +734,19 @@ private fun ReleaseAssetSegmentedItem(
                         asset.downloadUrl,
                         fileName,
                         onDownloaded = { uri ->
-                            isDownloading = false
-                            downloadedUri = uri
+                            scope.launch(Dispatchers.IO) {
+                                if (ModuleSignatureVerifier.verifyModuleZip(asset.downloadUrl, uri)) {
+                                    downloadedUri = uri
+                                } else {
+                                    runCatching { ksuApp.contentResolver.delete(uri, null, null) }
+                                    Toast.makeText(
+                                        context,
+                                        R.string.module_sig_verify_failed,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                isDownloading = false
+                            }
                         },
                         onDownloading = { isDownloading = true },
                         onProgress = { p -> scope.launch(Dispatchers.Main) { progress = p } }
@@ -807,6 +823,8 @@ fun InfoPage(
     scrollBehavior: TopAppBarScrollBehavior,
     uriHandler: UriHandler,
     sourceUrl: String,
+    origin: String = "",
+    note: String = "",
 ) {
     val layoutDirection = LocalLayoutDirection.current
     LazyColumn(
@@ -852,6 +870,58 @@ fun InfoPage(
                                     }
                                 }
                             )
+                        }
+                    }
+                )
+            }
+        }
+        if (origin.isNotEmpty() || note.isNotEmpty()) {
+            item {
+                SegmentedColumn(
+                    title = stringResource(R.string.module_note),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    content = buildList {
+                        if (origin.isNotEmpty()) {
+                            add {
+                                SegmentedListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = origin,
+                                            fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight,
+                                            fontFamily = MaterialTheme.typography.bodyMedium.fontFamily
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = stringResource(R.string.module_origin_label),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        if (note.isNotEmpty()) {
+                            add {
+                                SegmentedListItem(
+                                    headlineContent = {
+                                        Text(
+                                            text = note,
+                                            fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight,
+                                            fontFamily = MaterialTheme.typography.bodyMedium.fontFamily
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = stringResource(R.string.module_note_label),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 )

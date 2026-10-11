@@ -23,6 +23,7 @@ protobuf = "4.36.2"
 commons-compress = "1.28.0"
 xz = "1.12"
 documentfile = "1.1.0"
+bouncycastle = "1.80"
 
 [plugins]
 agp-app = { id = "com.android.application", version.ref = "agp" }
@@ -91,3 +92,5 @@ commons-compress = { module = "org.apache.commons:commons-compress", version.ref
 xz = { module = "org.tukaani:xz", version.ref = "xz" }
 
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
+
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }

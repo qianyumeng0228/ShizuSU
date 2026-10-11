@@ -72,6 +72,8 @@ fun ModuleRepoDetailScreen(module: RepoModuleArg) {
     val uriHandler = LocalUriHandler.current
     var readmeHtml by remember(module.moduleId) { mutableStateOf<String?>(null) }
     var readmeLoaded by remember(module.moduleId) { mutableStateOf(false) }
+    var detailOrigin by remember(module.moduleId) { mutableStateOf("") }
+    var detailNote by remember(module.moduleId) { mutableStateOf("") }
     var detailReleases by remember(module.moduleId) { mutableStateOf<List<ReleaseArg>>(emptyList()) }
     var webUrl by remember(module.moduleId) { mutableStateOf("${ModuleRepoConfig.baseUrl.trimEnd('/')}/module/${module.moduleId}") }
     var sourceUrl by remember(module.moduleId) { mutableStateOf("${ModuleRepoConfig.baseUrl.trimEnd('/')}/module/${module.moduleId}") }
@@ -83,6 +85,8 @@ fun ModuleRepoDetailScreen(module: RepoModuleArg) {
                     val detail = fetchModuleDetail(module.moduleId)
                     if (detail != null) {
                         readmeHtml = detail.readmeHtml
+                        detailOrigin = detail.origin
+                        detailNote = detail.note
                         if (detail.url.isNotEmpty() && detail.url != "null") {
                             webUrl = detail.url
                         }
@@ -120,6 +124,8 @@ fun ModuleRepoDetailScreen(module: RepoModuleArg) {
         detailReleases = detailReleases,
         webUrl = webUrl,
         sourceUrl = sourceUrl,
+        origin = detailOrigin,
+        note = detailNote,
     )
     val actions = ModuleRepoDetailActions(
         onBack = { navigator.pop() },

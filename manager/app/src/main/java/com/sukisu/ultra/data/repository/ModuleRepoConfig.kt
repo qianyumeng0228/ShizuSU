@@ -26,4 +26,8 @@ object ModuleRepoConfig {
     /** 模块目录 JSON 地址。 */
     val modulesUrl: String
         get() = baseUrl.trimEnd('/') + "/modules.json"
+
+    /** 是否为官方默认源（官方源强制要求索引签名存在，自定义源兼容跳过）。 */
+    val isDefaultSource: Boolean
+        get() = baseUrl.trimEnd('/') == DEFAULT_BASE_URL
 }

@@ -7,6 +7,7 @@ import com.sukisu.ultra.data.model.ReleaseAsset
 import com.sukisu.ultra.data.model.RepoModule
 import com.sukisu.ultra.ksuApp
 import com.sukisu.ultra.ui.util.isNetworkAvailable
+import com.sukisu.ultra.ui.util.module.ModuleSignatureVerifier
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,8 +26,16 @@ class ModuleRepoRepositoryImpl : ModuleRepoRepository {
                     throw Exception("Fetch failed: ${response.code}")
                 }
 
-                val body = response.body.string()
-                val json = JSONArray(body)
+                val bodyBytes = response.body.bytes()
+
+                // [ShizuSU] 索引签名校验：官方源强制，第三方源有签名则验、无签名兼容
+                val signatureOk =
+                    ModuleSignatureVerifier.verifyRepoIndex(bodyBytes, ModuleRepoConfig.isDefaultSource)
+                if (!signatureOk) {
+                    throw Exception("模块仓库签名校验失败，已拒绝加载（可能被篡改或签名缺失）")
+                }
+
+                val json = JSONArray(String(bodyBytes, Charsets.UTF_8))
                 (0 until json.length()).mapNotNull { idx ->
                     val item = json.optJSONObject(idx) ?: return@mapNotNull null
                     parseRepoModule(item)

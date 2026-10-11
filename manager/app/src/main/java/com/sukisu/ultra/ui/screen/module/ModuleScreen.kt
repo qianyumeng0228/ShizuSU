@@ -23,6 +23,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import android.widget.Toast
+import com.sukisu.ultra.ksuApp
+import com.sukisu.ultra.ui.util.module.ModuleSignatureVerifier
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.LocalUiMode
 import com.sukisu.ultra.ui.UiMode
@@ -122,9 +126,20 @@ fun ModulePager(
                     url = request.downloadUrl,
                     fileName = request.fileName,
                     onDownloaded = { uri ->
-                        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                            navigator.push(Route.Flash(FlashIt.FlashModules(listOf(uri))))
-                            viewModel.markNeedRefresh()
+                        scope.launch(Dispatchers.IO) {
+                            if (ModuleSignatureVerifier.verifyModuleZip(request.downloadUrl, uri)) {
+                                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    navigator.push(Route.Flash(FlashIt.FlashModules(listOf(uri))))
+                                    viewModel.markNeedRefresh()
+                                }
+                            } else {
+                                runCatching { ksuApp.contentResolver.delete(uri, null, null) }
+                                Toast.makeText(
+                                    context,
+                                    R.string.module_sig_verify_failed,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
                     },
                     onDownloading = {

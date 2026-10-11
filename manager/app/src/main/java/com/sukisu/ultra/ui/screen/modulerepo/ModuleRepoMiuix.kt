@@ -73,6 +73,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import android.widget.Toast
+import com.sukisu.ultra.ksuApp
+import com.sukisu.ultra.ui.util.module.ModuleSignatureVerifier
 import kotlinx.coroutines.launch
 import com.sukisu.ultra.R
 import com.sukisu.ultra.ui.component.ListPopupDefaults
@@ -822,9 +825,20 @@ fun ReleasesPage(
                                                             asset.downloadUrl,
                                                             fileName,
                                                             onDownloaded = { uri ->
+                                                            scope.launch(Dispatchers.IO) {
+                                                                if (ModuleSignatureVerifier.verifyModuleZip(asset.downloadUrl, uri)) {
+                                                                    downloadedUri = uri
+                                                                } else {
+                                                                    runCatching { ksuApp.contentResolver.delete(uri, null, null) }
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        R.string.module_sig_verify_failed,
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                }
                                                                 isDownloading = false
-                                                                downloadedUri = uri
-                                                            },
+                                                            }
+                                                        },
                                                             onDownloading = { isDownloading = true },
                                                             onProgress = { p -> scope.launch(Dispatchers.Main) { progress = p } })
                                                         isDownloading = false
@@ -954,6 +968,8 @@ fun InfoPage(
     secondaryContainer: Color,
     uriHandler: UriHandler,
     sourceUrl: String,
+    origin: String = "",
+    note: String = "",
 ) {
     val layoutDirection = LocalLayoutDirection.current
     Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
@@ -1015,6 +1031,59 @@ fun InfoPage(
                                         modifier = Modifier.padding(vertical = 8.dp),
                                         thickness = 0.5.dp,
                                         color = colorScheme.outline.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (origin.isNotEmpty() || note.isNotEmpty()) {
+                item {
+                    SmallTitle(
+                        text = stringResource(R.string.module_note), modifier = Modifier.padding(top = 6.dp)
+                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        insideMargin = PaddingValues(16.dp)
+                    ) {
+                        Column {
+                            if (origin.isNotEmpty()) {
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text(
+                                        text = stringResource(R.string.module_origin_label),
+                                        fontSize = 13.sp,
+                                        color = colorScheme.onSurfaceVariantSummary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = origin,
+                                        fontSize = 13.sp,
+                                        color = colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (note.isNotEmpty()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        thickness = 0.5.dp,
+                                        color = colorScheme.outline.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                            if (note.isNotEmpty()) {
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text(
+                                        text = stringResource(R.string.module_note_label),
+                                        fontSize = 13.sp,
+                                        color = colorScheme.onSurfaceVariantSummary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = note,
+                                        fontSize = 13.sp,
+                                        color = colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
@@ -1208,6 +1277,8 @@ fun ModuleRepoDetailScreenMiuix(
                         secondaryContainer = secondaryContainer,
                         uriHandler = uriHandler,
                         sourceUrl = state.sourceUrl,
+                        origin = state.origin,
+                        note = state.note,
                     )
                 }
             }

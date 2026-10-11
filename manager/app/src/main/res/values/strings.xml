@@ -49,6 +49,9 @@
     <string name="module_repos_sort_name">Name</string>
     <string name="module_repos_sort_stars">Stars</string>
     <string name="module_repos_source_code">Source code</string>
+    <string name="module_note">Notes</string>
+    <string name="module_origin_label">Origin</string>
+    <string name="module_note_label">Note</string>
     <string name="module_repo_upload">Upload</string>
     <string name="module_repo_upload_title">Submit module</string>
     <string name="module_repo_upload_source">Source</string>
@@ -150,6 +153,7 @@
     <string name="module_update">Update</string>
     <string name="module_downloading">Downloading module: %s</string>
     <string name="module_start_downloading">Start downloading: %s</string>
+    <string name="module_sig_verify_failed">Signature verification failed, module rejected (may be tampered)</string>
     <string name="module_action_success">Module action executed successfully.</string>
     <string name="new_version_available">New version %s is available, click to upgrade!</string>
     <string name="launch_app">Launch</string>

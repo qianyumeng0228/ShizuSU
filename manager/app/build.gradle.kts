@@ -266,6 +266,9 @@ dependencies {
     implementation(libs.commons.compress)
     implementation(libs.xz)
     implementation(libs.protobuf.kotlin.lite)
+
+    // [ShizuSU] Ed25519 验签（模块仓库签名校验；minSdk 26 无平台 Ed25519，R8 自动裁剪）
+    implementation(libs.bouncycastle.bcprov)
 }
 
 kotlin {
