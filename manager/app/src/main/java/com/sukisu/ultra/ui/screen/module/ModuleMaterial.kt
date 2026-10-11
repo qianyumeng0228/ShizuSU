@@ -266,7 +266,7 @@ fun ModulePagerMaterial(
                     val result = snackBarHost.showSnackbar(
                         message = event.message,
                         actionLabel = resource.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
-                        duration = SnackbarDuration.Long
+                        duration = SnackbarDuration.Short
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         reboot(if (softReboot) "soft_reboot" else "")

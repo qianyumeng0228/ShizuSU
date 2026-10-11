@@ -244,7 +244,7 @@ fun ModulePagerMiuix(
                     val result = snackbarHostState.showSnackbar(
                         message = event.message,
                         actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
-                        duration = SnackbarDuration.Long,
+                        duration = SnackbarDuration.Short,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         reboot(if (softReboot) "soft_reboot" else "")
