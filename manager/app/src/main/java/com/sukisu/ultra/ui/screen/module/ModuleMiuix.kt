@@ -258,6 +258,8 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.SnackBar -> {
+                // Toast fallback (always show for feedback)
+                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 // Cancel previous snackbar job
                 snackbarJob.value?.cancel()
                 val softReboot = isSoftRebootPreferred()
