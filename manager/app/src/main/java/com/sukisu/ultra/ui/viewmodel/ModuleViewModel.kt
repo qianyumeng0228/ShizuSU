@@ -373,7 +373,6 @@ class ModuleViewModel(
     }
 
     fun emitEffect(effect: ModuleEffect) {
-        android.util.Log.d("ModuleEvent", "emit: ${effect::class.simpleName}")
         _moduleEvent.trySend(effect)
     }
 
@@ -406,9 +405,8 @@ class ModuleViewModel(
             val msg = res.getString(
                 if (success) R.string.module_uninstall_success else R.string.module_uninstall_failed
             ).format(module.name)
-            // Emit SnackBar (primary feedback) + RebootConfirm (fallback dialog)
+            // Emit SnackBar only (custom overlay handles feedback + reboot)
             emitEffect(ModuleEffect.SnackBar(msg))
-            emitEffect(ModuleEffect.RebootConfirm(msg))
         }
     }
 

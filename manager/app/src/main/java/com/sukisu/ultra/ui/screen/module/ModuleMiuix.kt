@@ -259,15 +259,12 @@ fun ModulePagerMiuix(
         android.util.Log.d("ModuleEvent", "collect: ${event::class.simpleName}")
         when (event) {
             is ModuleEffect.Toast -> {
-                android.util.Log.d("ModuleEvent", "branch: Toast")
                 Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
             }
 
             is ModuleEffect.SnackBar -> {
-                android.util.Log.d("ModuleEvent", "branch: SnackBar")
                 // Show custom snackbar (reliable rendering)
                 customSnackbarMessage.value = event.message
-                android.util.Log.d("ModuleEvent", "customSnackbar set: ${event.message}")
                 val softReboot = isSoftRebootPreferred()
                 customSnackbarAction.value = {
                     reboot(if (softReboot) "soft_reboot" else "")
@@ -277,7 +274,6 @@ fun ModulePagerMiuix(
                 scope.launch {
                     delay(4000)
                     customSnackbarMessage.value = null
-                    android.util.Log.d("ModuleEvent", "customSnackbar auto-dismissed")
                 }
                 // Also try Miuix snackbar (in case it works)
                 snackbarJob.value?.cancel()
@@ -291,22 +287,11 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.RebootConfirm -> {
-                android.util.Log.d("ModuleEvent", "branch: RebootConfirm")
                 // Show toast (reliable feedback)
                 Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 // Show reboot confirmation dialog
                 showRebootDialog.value = true
                 rebootDialogMessage.value = event.message
-                // Also try to show snackbar (if Miuix API works)
-                snackbarJob.value?.cancel()
-                val softReboot = isSoftRebootPreferred()
-                snackbarJob.value = scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = event.message,
-                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
-                        duration = SnackbarDuration.Short,
-                    )
-                }
             }
         }
     }
@@ -687,7 +672,6 @@ fun ModulePagerMiuix(
         }
         // Custom snackbar overlay (reliable fallback for Miuix SnackbarHost)
         customSnackbarMessage.value?.let { message ->
-            android.util.Log.d("ModuleEvent", "customSnackbar rendering: $message")
             Box(
                 modifier = Modifier
                     .fillMaxSize()
