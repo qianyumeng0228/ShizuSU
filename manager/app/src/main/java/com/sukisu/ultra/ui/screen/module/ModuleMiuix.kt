@@ -258,8 +258,19 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.SnackBar -> {
-                // Miuix SnackbarHost doesn't render properly, use Toast instead
-                android.widget.Toast.makeText(context, event.message, android.widget.Toast.LENGTH_LONG).show()
+                // Cancel previous snackbar job
+                snackbarJob.value?.cancel()
+                val softReboot = isSoftRebootPreferred()
+                snackbarJob.value = scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        reboot(if (softReboot) "soft_reboot" else "")
+                    }
+                }
             }
 
             is ModuleEffect.RebootConfirm -> {
