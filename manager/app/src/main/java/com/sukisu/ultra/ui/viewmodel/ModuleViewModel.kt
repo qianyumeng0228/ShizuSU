@@ -373,6 +373,7 @@ class ModuleViewModel(
     }
 
     fun emitEffect(effect: ModuleEffect) {
+        android.util.Log.d("ModuleEvent", "emit: ${effect::class.simpleName}")
         _moduleEvent.trySend(effect)
     }
 

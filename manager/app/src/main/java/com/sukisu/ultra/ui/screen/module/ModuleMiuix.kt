@@ -252,14 +252,15 @@ fun ModulePagerMiuix(
     val scope = rememberCoroutineScope()
     val snackbarJob = remember { mutableStateOf<Job?>(null) }
     ObserveAsEvents(moduleEvent) { event ->
+        android.util.Log.d("ModuleEvent", "collect: ${event::class.simpleName}")
         when (event) {
             is ModuleEffect.Toast -> {
+                android.util.Log.d("ModuleEvent", "branch: Toast")
                 Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
             }
 
             is ModuleEffect.SnackBar -> {
-                // Toast fallback (always show for feedback)
-                Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                android.util.Log.d("ModuleEvent", "branch: SnackBar")
                 // Cancel previous snackbar job
                 snackbarJob.value?.cancel()
                 val softReboot = isSoftRebootPreferred()
@@ -276,6 +277,7 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.RebootConfirm -> {
+                android.util.Log.d("ModuleEvent", "branch: RebootConfirm")
                 // Show toast (reliable feedback)
                 Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 // Show reboot confirmation dialog
