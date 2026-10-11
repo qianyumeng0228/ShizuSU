@@ -131,7 +131,8 @@ object XposedRepoDetailFetcher {
                             releaseBodies = changelogMap,
                             releasesFull = releasesFull,
                             contributors = contribs.filter { it.isNotBlank() },
-                            readmeZh = j.optString("readme", ""),
+                            // Prefer readmeZh (Chinese), fall back to readme (original)
+                            readmeZh = j.optString("readmeZh", "").ifBlank { j.optString("readme", "") },
                         )
                         log("enrich: readme=${j.optString("readme","").length}ch, releases=${releasesFull.size}, changelog=${changelogMap.size}")
                         break@enrichLoop  // ← Fixed: break out of for loop, not just use block
