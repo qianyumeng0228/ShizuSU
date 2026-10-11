@@ -267,6 +267,7 @@ fun ModulePagerMiuix(
                 android.util.Log.d("ModuleEvent", "branch: SnackBar")
                 // Show custom snackbar (reliable rendering)
                 customSnackbarMessage.value = event.message
+                android.util.Log.d("ModuleEvent", "customSnackbar set: ${event.message}")
                 val softReboot = isSoftRebootPreferred()
                 customSnackbarAction.value = {
                     reboot(if (softReboot) "soft_reboot" else "")
@@ -276,6 +277,7 @@ fun ModulePagerMiuix(
                 scope.launch {
                     delay(4000)
                     customSnackbarMessage.value = null
+                    android.util.Log.d("ModuleEvent", "customSnackbar auto-dismissed")
                 }
                 // Also try Miuix snackbar (in case it works)
                 snackbarJob.value?.cancel()
@@ -685,6 +687,7 @@ fun ModulePagerMiuix(
         }
         // Custom snackbar overlay (reliable fallback for Miuix SnackbarHost)
         customSnackbarMessage.value?.let { message ->
+            android.util.Log.d("ModuleEvent", "customSnackbar rendering: $message")
             Box(
                 modifier = Modifier
                     .fillMaxSize()
