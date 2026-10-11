@@ -31,10 +31,12 @@ object XposedRepoDetailFetcher {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    // Fast client for icon detection (2s timeout — avoid 10s per-request timeouts)
+    // Fast client for icon detection (1s timeout — ensure total icon phase ≤ 1.5s)
+    // Root cause of 2.3s icon phase: per-request timeout was 2s,
+    // so even with 1s budget check, first request alone took 2s to timeout.
     private val iconClient = OkHttpClient.Builder()
-        .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(2, TimeUnit.SECONDS)
+        .connectTimeout(1, TimeUnit.SECONDS)
+        .readTimeout(1, TimeUnit.SECONDS)
         .build()
 
     private fun log(msg: String) = android.util.Log.e("XposedDetail", msg)
