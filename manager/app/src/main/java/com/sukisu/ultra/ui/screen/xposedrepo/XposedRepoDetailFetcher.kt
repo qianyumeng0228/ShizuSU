@@ -90,7 +90,7 @@ object XposedRepoDetailFetcher {
                 "https://qianyumeng0228.github.io/ShizuSU-Xposed/enrich/$pkg.json",
                 "https://cdn.jsdelivr.net/gh/qianyumeng0228/ShizuSU-Xposed@main/enrich/$pkg.json",
             )
-            for (u in enrichUrls) {
+            enrichLoop@ for (u in enrichUrls) {
                 val req = Request.Builder().url(u).header("User-Agent", "ShizuSU").build()
                 client.newCall(req).execute().use { resp ->
                     log("enrich -> ${resp.code}")
@@ -134,7 +134,7 @@ object XposedRepoDetailFetcher {
                             readmeZh = j.optString("readme", ""),
                         )
                         log("enrich: readme=${j.optString("readme","").length}ch, releases=${releasesFull.size}, changelog=${changelogMap.size}")
-                        return@use
+                        break@enrichLoop  // ← Fixed: break out of for loop, not just use block
                     }
                 }
             }
