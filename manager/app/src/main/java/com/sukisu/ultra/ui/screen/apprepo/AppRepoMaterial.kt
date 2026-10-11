@@ -159,6 +159,7 @@ fun AppRepoScreenMaterial(state: AppRepoUiState, actions: AppRepoActions) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppDetailMaterial(app: AppEntry, onBack: () -> Unit, actions: AppRepoActions) {
+    androidx.activity.compose.BackHandler(onBack = onBack)
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val dlState by ApkDownloader.states.collectAsStateWithLifecycle()

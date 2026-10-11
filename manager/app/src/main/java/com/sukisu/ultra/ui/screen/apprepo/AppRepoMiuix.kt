@@ -144,6 +144,7 @@ fun AppRepoScreenMiuix(state: AppRepoUiState, actions: AppRepoActions) {
 
 @Composable
 private fun AppDetailMiuix(app: AppEntry, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler(onBack = onBack)
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val dlStates by ApkDownloader.states.collectAsStateWithLifecycle()
