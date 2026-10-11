@@ -272,10 +272,12 @@ fun XposedRepoDetailScreen(mod: XposedModule, onBack: () -> Unit) {
 
     LaunchedEffect(mod.name) {
         extra = XposedRepoDetailFetcher.fetch(mod.name, fallbackReadme = mod.readme)
-        // Async translate: if readme is English, translate in background
+        // Async translate: if readme is English, translate on IO thread
         val current = extra ?: return@LaunchedEffect
         if (XposedRepoDetailFetcher.needsTranslation(current.readmeZh)) {
-            val translated = XposedRepoDetailFetcher.translateToChinese(current.readmeZh)
+            val translated = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                XposedRepoDetailFetcher.translateToChinese(current.readmeZh)
+            }
             if (!translated.isNullOrBlank()) {
                 extra = current.copy(readmeZh = translated)
             }
