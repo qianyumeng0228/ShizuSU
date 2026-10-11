@@ -235,10 +235,8 @@ fun ModulePagerMiuix(
             }
 
             is ModuleEffect.SnackBar -> {
-                // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
+                // Cancel previous snackbar job
                 snackbarJob.value?.cancel()
-                snackbarHostState.newestSnackbarData()?.dismiss()
-                // Soft reboot keeps the jailbreak and still applies module changes
                 val softReboot = isSoftRebootPreferred()
                 snackbarJob.value = scope.launch {
                     val result = snackbarHostState.showSnackbar(
