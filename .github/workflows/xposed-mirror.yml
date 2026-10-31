@@ -18,23 +18,54 @@ jobs:
         run: |
           set -e
           ok=0
-          for u in \
-            "https://modules.lsposed.org/modules.json" \
-            "https://modules-blogcdn.lsposed.org/modules.json" \
-            "https://modules-cloudflare.lsposed.org/modules.json"; do
+          # New upstream API: paginated module list (old /modules.json endpoints are dead: 403/418/DNS)
+          for p in $(seq 1 60); do
+            u="https://modules.lsposed.org/module-list/$p.json"
             echo "== trying $u"
-            # -k: blogcdn cert expired upstream; --compressed: EdgeOne blocks uncompressed curl; -A: UA
-            if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o docs/xposed/modules.json; then
+            if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o "docs/xposed/page-$p.json" 2>/dev/null; then
               ok=1
+            else
               break
             fi
           done
+          # Fallback: old endpoints (keep for resilience, currently dead upstream)
+          if [ "$ok" != "1" ]; then
+            for u in \
+              "https://modules.lsposed.org/modules.json" \
+              "https://modules-blogcdn.lsposed.org/modules.json" \
+              "https://modules-cloudflare.lsposed.org/modules.json"; do
+              echo "== fallback trying $u"
+              if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o "docs/xposed/modules.json"; then
+                ok=1
+                break
+              fi
+            done
+          fi
           if [ "$ok" != "1" ]; then
             echo "::error::all upstream mirrors failed"
             exit 1
           fi
+          # Merge all pages into a plain OnlineModule[] array (LSPosed Manager compatible)
+          python3 - <<'PYEOF'
+          import json, glob, os, re
+          pages = glob.glob('docs/xposed/page-*.json')
+          if pages:
+              modules = []
+              for f in sorted(pages, key=lambda p: int(re.findall(r'page-(\d+)\.json', p)[0])):
+                  try:
+                      data = json.load(open(f, encoding='utf-8'))
+                      modules.extend(data.get('modules', []))
+                  except Exception as e:
+                      print('skip', os.path.basename(f), e)
+                  os.remove(f)
+              json.dump(modules, open('docs/xposed/modules.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+              print('entries:', len(modules))
+              assert len(modules) > 0, 'empty module list'
           # basic sanity: must be a JSON array
-          python3 -c "import json,sys; d=json.load(open('docs/xposed/modules.json')); assert isinstance(d,list); print('entries:', len(d))"
+          d = json.load(open('docs/xposed/modules.json'))
+          assert isinstance(d, list), 'not an array'
+          print('final entries:', len(d))
+          PYEOF
 
       - name: Commit if changed
         run: |
