@@ -18,40 +18,28 @@ jobs:
         run: |
           set -e
           ok=0
-          # New upstream API: paginated module list (old /modules.json endpoints are dead: 403/418/DNS)
-          for p in $(seq 1 60); do
-            u="https://modules.lsposed.org/module-list/$p.json"
-            echo "== trying $u"
-            if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o "docs/xposed/page-$p.json" 2>/dev/null; then
-              ok=1
-            else
-              break
-            fi
-          done
-          # Fallback: old endpoints (keep for resilience, currently dead upstream)
+          # Primary: official backup source (same as ShizuSU-Xposed, full OnlineModule fields)
+          echo "== trying backup source"
+          if curl -fkSL --compressed --max-time 90 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "https://backup.modules.lsposed.org/modules.json" -o "docs/xposed/modules.json" 2>/dev/null; then
+            ok=1
+          fi
+          # Fallback 1: official website paginated API (merge all pages)
           if [ "$ok" != "1" ]; then
-            for u in \
-              "https://modules.lsposed.org/modules.json" \
-              "https://modules-blogcdn.lsposed.org/modules.json" \
-              "https://modules-cloudflare.lsposed.org/modules.json"; do
-              echo "== fallback trying $u"
-              if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o "docs/xposed/modules.json"; then
+            rm -f docs/xposed/modules.json
+            for p in $(seq 1 60); do
+              u="https://modules.lsposed.org/module-list/$p.json"
+              echo "== trying $u"
+              if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "$u" -o "docs/xposed/page-$p.json" 2>/dev/null; then
                 ok=1
+              else
                 break
               fi
             done
-          fi
-          if [ "$ok" != "1" ]; then
-            echo "::error::all upstream mirrors failed"
-            exit 1
-          fi
-          # Merge all pages into a plain OnlineModule[] array (LSPosed Manager compatible)
-          python3 - <<'PYEOF'
-          import json, glob, os, re
-          pages = glob.glob('docs/xposed/page-*.json')
-          if pages:
+            if [ "$ok" = "1" ]; then
+              python3 - <<'PYEOF'
+              import json, glob, os, re
               modules = []
-              for f in sorted(pages, key=lambda p: int(re.findall(r'page-(\d+)\.json', p)[0])):
+              for f in sorted(glob.glob('docs/xposed/page-*.json'), key=lambda p: int(re.findall(r'page-(\d+)\.json', p)[0])):
                   try:
                       data = json.load(open(f, encoding='utf-8'))
                       modules.extend(data.get('modules', []))
@@ -60,10 +48,26 @@ jobs:
                   os.remove(f)
               json.dump(modules, open('docs/xposed/modules.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
               print('entries:', len(modules))
-              assert len(modules) > 0, 'empty module list'
-          # basic sanity: must be a JSON array
-          d = json.load(open('docs/xposed/modules.json'))
+              PYEOF
+            fi
+          fi
+          # Fallback 2: old primary endpoint (currently dead upstream, kept for resilience)
+          if [ "$ok" != "1" ]; then
+            echo "== fallback trying modules.lsposed.org"
+            if curl -fkSL --compressed --max-time 60 -A "Mozilla/5.0 (compatible; ShizuSU-mirror/1.0)" "https://modules.lsposed.org/modules.json" -o "docs/xposed/modules.json" 2>/dev/null; then
+              ok=1
+            fi
+          fi
+          if [ "$ok" != "1" ]; then
+            echo "::error::all upstream mirrors failed"
+            exit 1
+          fi
+          # basic sanity: must be a non-empty JSON array
+          python3 - <<'PYEOF'
+          import json
+          d = json.load(open('docs/xposed/modules.json', encoding='utf-8'))
           assert isinstance(d, list), 'not an array'
+          assert len(d) > 0, 'empty module list'
           print('final entries:', len(d))
           PYEOF
 
