@@ -1,5 +1,6 @@
 #include <linux/capability.h>
 #include <linux/cred.h>
+#include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -115,6 +116,7 @@ static int do_get_info_legacy(void __user *arg)
 
 static int do_report_event(void __user *arg)
 {
+    static bool services_started = false;
     struct ksu_report_event_cmd cmd;
 
     if (copy_from_user(&cmd, arg, sizeof(cmd))) {
@@ -124,6 +126,9 @@ static int do_report_event(void __user *arg)
     switch (cmd.event) {
     case EVENT_POST_FS_DATA: {
         static bool post_fs_data_lock = false;
+
+        // Reset for emulated soft reboot
+        services_started = false;
         if (!post_fs_data_lock) {
             post_fs_data_lock = true;
             if (ksu_late_loaded) {
@@ -154,6 +159,15 @@ static int do_report_event(void __user *arg)
         pr_info("module mounted!\n");
         on_module_mounted();
         break;
+    }
+    case EVENT_SERVICES: {
+        if (services_started) {
+            pr_info("services already started, skipping\n");
+            return 0;
+        }
+        services_started = true;
+        pr_info("services triggered\n");
+        return 1;
     }
     default:
         break;
@@ -1203,7 +1217,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
     int i;
 
 #ifdef CONFIG_KSU_DEBUG
-    pr_info("ksu ioctl: cmd=0x%x from uid=%d\n", cmd, current_uid().val);
+    pr_info_ratelimited("ksu ioctl: cmd=0x%x from uid=%d\n", cmd, current_uid().val);
 #endif
 
     for (i = 0; ksu_ioctl_handlers[i].handler; i++) {
@@ -1211,7 +1225,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
             // Check permission first
             if (ksu_ioctl_handlers[i].perm_check && !ksu_ioctl_handlers[i].perm_check() &&
                 !(ksu_ioctl_handlers[i].allow_su_session && ksu_is_su_session_fd(filp))) {
-                pr_warn("ksu ioctl: permission denied for cmd=0x%x uid=%d\n", cmd, current_uid().val);
+                pr_warn_ratelimited("ksu ioctl: permission denied for cmd=0x%x uid=%d\n", cmd, current_uid().val);
                 return -EPERM;
             }
             // Execute handler
@@ -1219,7 +1233,7 @@ long ksu_supercall_handle_ioctl(const struct file *filp, unsigned int cmd, void 
         }
     }
 
-    pr_warn("ksu ioctl: unsupported command 0x%x\n", cmd);
+    pr_warn_ratelimited("ksu ioctl: unsupported command 0x%x\n", cmd);
     return -ENOTTY;
 }
 

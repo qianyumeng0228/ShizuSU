@@ -53,6 +53,10 @@ static void add_typeattribute_raw(struct policydb *db, struct type_datum *type, 
 
 static bool add_typeattribute(struct policydb *db, const char *type, const char *attr);
 
+static const struct policydb *ksu_original_types_policy;
+static u32 ksu_original_types_limit;
+static u32 ksu_original_types_generation;
+
 //////////////////////////////////////////////////////
 // Implementation
 //////////////////////////////////////////////////////
@@ -81,7 +85,7 @@ static bool add_typeattribute(struct policydb *db, const char *type, const char 
 #define symtab_insert(s, name, datum) hashtab_insert((s)->table, name, datum)
 #endif
 
-#define avtab_for_each(avtab, cur) ksu_hash_for_each(avtab.htable, avtab.nslot, cur);
+#define avtab_for_each(avtab, cur) ksu_hash_for_each(avtab.htable, avtab.nslot, cur)
 
 static struct avtab_node *get_avtab_node(struct policydb *db, struct avtab_key *key,
                                          struct avtab_extended_perms *xperms)
@@ -122,12 +126,12 @@ static struct avtab_node *get_avtab_node(struct policydb *db, struct avtab_key *
         if (!node)
             return NULL;
 
+        // extra size: add_type() can grow policy without updating db->len
         int grow_size = sizeof(struct avtab_key);
         grow_size += sizeof(struct avtab_datum);
         if (key->specified & AVTAB_XPERMS) {
-            grow_size += sizeof(u8);
-            grow_size += sizeof(u8);
-            grow_size += sizeof(u32) * ARRAY_SIZE(avdatum.u.xperms->perms.p);
+            grow_size += sizeof(avdatum.u.xperms->specified) + sizeof(avdatum.u.xperms->driver) +
+                         sizeof(avdatum.u.xperms->perms.p);
         }
         db->len += grow_size;
     }
@@ -150,7 +154,9 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
 {
     int i;
     int ret;
-    int shrink_size = sizeof(struct avtab_key) + sizeof(struct avtab_datum);
+    // https://github.com/torvalds/linux/blob/v6.1/security/selinux/ss/avtab.c#L619
+    int shrink_size = sizeof(node->key.source_type) + sizeof(node->key.target_type) + sizeof(node->key.target_class) +
+                      sizeof(node->key.specified);
     struct avtab removed = {};
     struct avtab_node *n;
     struct avtab_node *prev;
@@ -173,9 +179,13 @@ static bool remove_avtab_node(struct policydb *db, struct avtab_node *node)
             if (db->te_avtab.nel > 0)
                 db->te_avtab.nel--;
 
-            if ((n->key.specified & AVTAB_XPERMS) && n->datum.u.xperms) {
-                shrink_size += sizeof(u8) + sizeof(u8) + sizeof(u32) * ARRAY_SIZE(n->datum.u.xperms->perms.p);
-            }
+            if (n->key.specified & AVTAB_XPERMS)
+                // specified and driver are u8, perms.p holds 8 u32s
+                shrink_size += sizeof(n->datum.u.xperms->specified) + sizeof(n->datum.u.xperms->driver) +
+                               sizeof(n->datum.u.xperms->perms.p);
+            else
+                // data is u32
+                shrink_size += sizeof(n->datum.u.data);
             n->next = NULL;
             removed.htable[0] = n;
             removed.nel = 1;
@@ -396,14 +406,9 @@ static void add_xperm_rule_raw(struct policydb *db, struct type_datum *src, stru
         }
         datum = &node->datum;
 
-        if (datum->u.xperms == NULL) {
-            datum->u.xperms = (struct avtab_extended_perms *)(kzalloc(sizeof(xperms), GFP_KERNEL));
-            if (!datum->u.xperms) {
-                pr_err("alloc xperms failed\n");
-                return;
-            }
-            memcpy(datum->u.xperms, &xperms, sizeof(xperms));
-        }
+        // Allow updating permission bits of existing xperms
+        for (i = 0; i < ARRAY_SIZE(xperms.perms.p); i++)
+            datum->u.xperms->perms.p[i] |= xperms.perms.p[i];
     }
 }
 
@@ -827,6 +832,54 @@ bool ksu_typeattribute(struct policydb *db, const char *type, const char *attr)
 bool ksu_exists(struct policydb *db, const char *type)
 {
     return symtab_search(&db->p_types, type) != NULL;
+}
+
+bool ksu_set_original_types(struct policydb *db, struct policydb *orig_db, u32 policy_generation)
+{
+    if (!db || !orig_db || !policy_generation || orig_db->p_types.nprim > db->p_types.nprim) {
+        WRITE_ONCE(ksu_original_types_generation, 0);
+        WRITE_ONCE(ksu_original_types_policy, NULL);
+        WRITE_ONCE(ksu_original_types_limit, 0);
+        return false;
+    }
+
+    WRITE_ONCE(ksu_original_types_limit, orig_db->p_types.nprim);
+    WRITE_ONCE(ksu_original_types_generation, policy_generation);
+    WRITE_ONCE(ksu_original_types_policy, db);
+    return true;
+}
+
+bool ksu_advance_original_types(struct policydb *db, struct policydb *old_db, u32 old_policy_generation,
+                                u32 policy_generation)
+{
+    u32 original_types_limit = READ_ONCE(ksu_original_types_limit);
+    u32 original_types_generation = READ_ONCE(ksu_original_types_generation);
+
+    if (!db || !old_db || !old_policy_generation || !policy_generation || !original_types_limit ||
+        !original_types_generation || old_policy_generation != original_types_generation ||
+        READ_ONCE(ksu_original_types_policy) != old_db || db->p_types.nprim < original_types_limit) {
+        WRITE_ONCE(ksu_original_types_generation, 0);
+        WRITE_ONCE(ksu_original_types_policy, NULL);
+        WRITE_ONCE(ksu_original_types_limit, 0);
+        return false;
+    }
+
+    WRITE_ONCE(ksu_original_types_generation, policy_generation);
+    WRITE_ONCE(ksu_original_types_policy, db);
+    return true;
+}
+
+int ksu_type_is_original(struct policydb *db, u32 policy_generation, u32 type_value)
+{
+    const struct policydb *original_types_policy = READ_ONCE(ksu_original_types_policy);
+    u32 original_types_limit = READ_ONCE(ksu_original_types_limit);
+    u32 original_types_generation = READ_ONCE(ksu_original_types_generation);
+
+    if (!db || !policy_generation || original_types_policy != db || original_types_generation != policy_generation ||
+        !original_types_limit || type_value > db->p_types.nprim)
+        return -1;
+
+    return type_value && type_value <= original_types_limit ? 1 : 0;
 }
 
 // Access vector rules
