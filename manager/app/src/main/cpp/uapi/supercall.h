@@ -12,7 +12,8 @@
 // 5: [ShizuSU] add KSU_IOCTL_DYNAMIC_MANAGER_GET(106)/SET(107)
 // 6: [ShizuSU 补丁2] add KSU_IOCTL_STEALTH_GET(25)/SET(26)
 // 7: [ShizuSU 补丁4] add KSU_IOCTL_GET_HOOK_MODE(98)/GET_VERSION_TAG(99)
-static const __u32 KERNEL_SU_UAPI_VERSION = 7;
+// 8: add EVENT_SERVICES with a start/skip result
+static const __u32 KERNEL_SU_UAPI_VERSION = 8;
 
 /* Magic numbers for reboot hook to install fd */
 static const __u32 KSU_INSTALL_MAGIC1 = 0xDEADBEEF;
@@ -26,6 +27,7 @@ struct ksu_become_daemon_cmd {
 static const __u32 EVENT_POST_FS_DATA = 1;
 static const __u32 EVENT_BOOT_COMPLETED = 2;
 static const __u32 EVENT_MODULE_MOUNTED = 3;
+static const __u32 EVENT_SERVICES = 4;
 
 static const __u32 KSU_GET_INFO_FLAG_LKM = (1U << 0);
 static const __u32 KSU_GET_INFO_FLAG_MANAGER = (1U << 1);
